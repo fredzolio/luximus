@@ -1,0 +1,11 @@
+[project]
+name = "luximus"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.6",
+    "letta-client>=0.1.16",
+    "uvicorn>=0.34.0",
+]
