@@ -5,12 +5,14 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "alembic>=1.14.1",
     "fastapi>=0.115.6",
     "letta-client>=0.1.16",
     "mysql-connector-python>=9.2.0",
     "passlib>=1.7.4",
     "pydantic-settings>=2.7.1",
     "pydantic[email]>=2.10.5",
+    "pymysql>=1.1.1",
     "python-dotenv>=1.0.1",
     "sqlalchemy>=2.0.37",
     "taskipy>=1.14.1",
@@ -19,4 +21,6 @@ dependencies = [
 
 [tool.taskipy.tasks]
 ngrok = "ngrok http 8000"
-serve = "uvicorn app.main:app --reload --port 8000 --workers 2"
+serve = "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+makemigration = "alembic revision --autogenerate -m"
+migrate = "alembic upgrade head"
