@@ -8,6 +8,7 @@ class WebhookService:
         user_name = payload.get('notifyName')
         user_number = payload.get('from').replace("@c.us", "")
         message = payload.get('body')
+        session = payload.get('session')
 
         user = await WebhookService.create_user_if_not_exists(user_number, user_name)
 
@@ -17,6 +18,7 @@ class WebhookService:
             "user_name": user_name,
             "user_number": user_number,
             "message": message,
+            "session": session
         }
 
     @staticmethod

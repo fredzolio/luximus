@@ -25,3 +25,14 @@ async def webhook_handler(request: Request):
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Formato de JSON inválido.")
+    
+# @router.post("/")
+# async def webhook_handler(request: Request):
+#     try:
+#         body = await request.body()
+#         print("===== DEBUG WEBHOOK PAYLOAD =====")
+#         print(body)
+#         return 
+
+#     except json.JSONDecodeError:
+#         raise HTTPException(status_code=400, detail="Formato de JSON inválido.")

@@ -15,6 +15,7 @@ class User(Base):
     cpf = Column(String(11), unique=True, nullable=True)
     id_main_agent = Column(String(255), nullable=True) 
     id_session_wpp = Column(String(255), nullable=True)
+    token_wpp = Column(String(255), nullable=True)
 
     def __repr__(self):
         return f"<User(id={self.id}, name={self.name}, phone={self.phone})>"
