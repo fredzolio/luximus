@@ -1,99 +1,107 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from app.schemas.user import UserCreate, UserBase
 from app.models.user import User
-from app.db.session import SessionLocal
+from app.db.session import SessionLocal as async_session
 
 
 class UserRepository:
-    def __init__(self):
-        # Gerencia a sessão internamente
-        self.db = SessionLocal()
-
-    def create_user(self, user: UserCreate):
+    async def create_user(self, user: UserCreate):
         """
         Cria um novo usuário no banco de dados.
         """
-        db_user = User(
-            name=user.name,
-            phone=user.phone,
-            cpf=user.cpf
-        )
-        self.db.add(db_user)
-        self.db.commit()
-        self.db.refresh(db_user)
-        return db_user
+        async with async_session() as db:
+            db_user = User(
+                name=user.name,
+                phone=user.phone,
+                cpf=user.cpf
+            )
+            db.add(db_user)
+            await db.commit()
+            await db.refresh(db_user)
+            return db_user
 
-    def get_user_by_id(self, user_id: str):
+    async def get_user_by_id(self, user_id: str):
         """
         Busca um usuário pelo ID.
         """
-        return self.db.query(User).filter(User.id == user_id).first()
+        async with async_session() as db:
+            query = select(User).where(User.id == user_id)
+            result = await db.execute(query)
+            return result.scalars().first()
 
-    def get_user_by_cpf(self, cpf: str):
+    async def get_user_by_cpf(self, cpf: str):
         """
         Busca um usuário pelo CPF.
         """
-        return self.db.query(User).filter(User.cpf == cpf).first()
+        async with async_session() as db:
+            query = select(User).where(User.cpf == cpf)
+            result = await db.execute(query)
+            return result.scalars().first()
 
-    def get_user_by_phone(self, phone: str):
+    async def get_user_by_phone(self, phone: str):
         """
         Busca um usuário pelo número de telefone.
         """
-        return self.db.query(User).filter(User.phone == phone).first()
+        async with async_session() as db:
+            query = select(User).where(User.phone == phone)
+            result = await db.execute(query)
+            return result.scalars().first()
 
-    def update_user_by_id(self, user_id: str, user_update: UserBase):
+    async def update_user_by_id(self, user_id: str, user_update: UserBase):
         """
         Atualiza os dados de um usuário com base no ID.
         """
-        db_user = self.get_user_by_id(user_id)
-        if not db_user:
-            return None
+        async with async_session() as db:
+            db_user = await self.get_user_by_id(user_id)
+            if not db_user:
+                return None
 
-        for field, value in user_update.dict(exclude_unset=True).items():
-            setattr(db_user, field, value)
+            for field, value in user_update.dict(exclude_unset=True).items():
+                setattr(db_user, field, value)
 
-        self.db.commit()
-        self.db.refresh(db_user)
-        return db_user
+            await db.commit()
+            await db.refresh(db_user)
+            return db_user
 
-    def update_user_by_cpf(self, cpf: str, user_update: UserBase):
+    async def update_user_by_cpf(self, cpf: str, user_update: UserBase):
         """
         Atualiza os dados de um usuário com base no CPF.
         """
-        db_user = self.get_user_by_cpf(cpf)
-        if not db_user:
-            return None
+        async with async_session() as db:
+            db_user = await self.get_user_by_cpf(cpf)
+            if not db_user:
+                return None
 
-        for field, value in user_update.dict(exclude_unset=True).items():
-            setattr(db_user, field, value)
+            for field, value in user_update.dict(exclude_unset=True).items():
+                setattr(db_user, field, value)
 
-        self.db.commit()
-        self.db.refresh(db_user)
-        return db_user
+            await db.commit()
+            await db.refresh(db_user)
+            return db_user
 
-    def delete_user_by_id(self, user_id: str):
+    async def delete_user_by_id(self, user_id: str):
         """
         Deleta um usuário com base no ID.
         """
-        db_user = self.get_user_by_id(user_id)
-        if not db_user:
-            return None
+        async with async_session() as db:
+            db_user = await self.get_user_by_id(user_id)
+            if not db_user:
+                return None
 
-        self.db.delete(db_user)
-        self.db.commit()
-        return db_user
+            await db.delete(db_user)
+            await db.commit()
+            return db_user
 
-    def delete_user_by_cpf(self, cpf: str):
+    async def delete_user_by_cpf(self, cpf: str):
         """
         Deleta um usuário com base no CPF.
         """
-        db_user = self.get_user_by_cpf(cpf)
-        if not db_user:
-            return None
+        async with async_session() as db:
+            db_user = await self.get_user_by_cpf(cpf)
+            if not db_user:
+                return None
 
-        self.db.delete(db_user)
-        self.db.commit()
-        return db_user
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.db.close()
+            await db.delete(db_user)
+            await db.commit()
+            return db_user

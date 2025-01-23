@@ -4,12 +4,12 @@ from app.services.user_service import UserRepository
 
 class WebhookService:
     @staticmethod
-    def process_onmessage_event(payload: dict):
+    async def process_onmessage_event(payload: dict):
         user_name = payload.get('notifyName')
         user_number = payload.get('from').replace("@c.us", "")
         message = payload.get('body')
 
-        user = WebhookService.create_user_if_not_exists(user_number, user_name)
+        user = await WebhookService.create_user_if_not_exists(user_number, user_name)
 
         WebhookService.perform_action_based_on_message(message, user)
 
@@ -20,21 +20,20 @@ class WebhookService:
         }
 
     @staticmethod
-    def create_user_if_not_exists(user_number: str, user_name: str):
+    async def create_user_if_not_exists(user_number: str, user_name: str):
         user_repo = UserRepository()
         try:
-            user = user_repo.get_user_by_phone(phone=user_number)
+            user = await user_repo.get_user_by_phone(phone=user_number)
             if not user:
-                new_user = user_repo.create_user(user=UserCreate(name=user_name, phone=user_number))
-                print(f"Usuário criado: {new_user}")
+                new_user = await user_repo.create_user(user=UserCreate(name=user_name, phone=user_number))
+                
+
                 return new_user
             else:
-                print(f"Usuário já existe: {user}")
                 return user
         except Exception as e:
             print(f"Erro ao criar ou buscar usuário: {e}")
 
     @staticmethod
     def perform_action_based_on_message(message: str, user: User):
-        if message.lower() == "oi":
-            print(f"Usuário {user.name} disse 'Oi', envie uma resposta!")
+        print(f"{user.name}:\n{message}")

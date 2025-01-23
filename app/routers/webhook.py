@@ -18,7 +18,7 @@ async def webhook_handler(request: Request):
         payload = json.loads(body.decode("utf-8"))
 
         if payload.get('event') == 'onmessage':
-            data = WebhookService.process_onmessage_event(payload)
+            data = await WebhookService.process_onmessage_event(payload)
             return {"status": "success", "event": "onmessage", "data": data}
 
         return {"status": "ignored", "message": "Evento não processado."}
