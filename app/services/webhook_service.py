@@ -1,6 +1,7 @@
 from app.models.user import User
 from app.schemas.user import UserCreate
 from app.services.user_service import UserRepository
+from app.services.whatsapp_service import WhatsAppService
 
 class WebhookService:
     @staticmethod
@@ -38,4 +39,6 @@ class WebhookService:
 
     @staticmethod
     def perform_action_based_on_message(message: str, user: User):
+        wpp = WhatsAppService(session_name=user.id_session_wpp, token=user.token_wpp)
+        wpp.send_message(user.phone, message)
         print(f"{user.name}:\n{message}")

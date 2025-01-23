@@ -1,4 +1,6 @@
+import os
 import requests
+from dotenv import load_dotenv
 
 class WhatsAppService:
     """
@@ -6,18 +8,19 @@ class WhatsAppService:
     Essa classe encapsula chamadas a alguns endpoints básicos
     descritos na OpenAPI, usando requests.
     """
-
-    def __init__(self, base_url: str, session_name: str, secret_key: str = None):
+    load_dotenv(dotenv_path=".env", override=True)
+    
+    def __init__(self, session_name: str, token: str = None):
         """
         :param base_url: URL base do WPPConnect (ex: http://localhost:21465 ou outro endpoint).
         :param session_name: Nome da sessão, ex.: 'NERDWHATS_AMERICA'.
         :param secret_key: Chave secreta usada em alguns endpoints (opcional,
-                          pois alguns ambientes usam outra forma de autorização).
+        pois alguns ambientes usam outra forma de autorização).
         """
-        self.base_url = base_url.rstrip("/")
+        self.base_url = os.getenv("WHATSAPP_SERVER_BASE_URL")
         self.session_name = session_name
-        self.secret_key = secret_key
-        self._token = None  # Token JWT gerado pelo endpoint generate-token
+        self.secret_key = os.getenv("WHATSAPP_SERVER_SECRET_KEY")
+        self._token = token
 
     def generate_token(self):
         """
@@ -30,9 +33,8 @@ class WhatsAppService:
 
         url = f"{self.base_url}/api/{self.session_name}/{self.secret_key}/generate-token"
         response = requests.post(url)
-        response.raise_for_status()  # Levanta exceção se status_code >= 400
+        response.raise_for_status()
         data = response.json()
-        # Supondo que o token venha em algo como data["token"] (dependendo da implementação do seu backend):
         self._token = data.get("token")  
         return self._token
 
@@ -54,14 +56,14 @@ class WhatsAppService:
         resp.raise_for_status()
         return resp.json()
 
-    def start_session(self, webhook: str = "", wait_qr_code: bool = False):
+    def start_session(self, wait_qr_code: bool = False):
         """
         Inicializa sessão.
         Endpoint: POST /api/{session}/start-session
         """
         url = f"{self.base_url}/api/{self.session_name}/start-session"
         payload = {
-            "webhook": webhook,
+            "webhook": os.getenv("WHATSAPP_SERVER_WEBHOOK_URL"),
             "waitQrCode": wait_qr_code
         }
         resp = requests.post(url, json=payload, headers=self._get_headers())
