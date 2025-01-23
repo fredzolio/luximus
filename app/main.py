@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.routers import user_router
-from app.services import webhook
+from app.routers import webhook
 
 app = FastAPI(title="Luximus API", version="0.1.0")
 
