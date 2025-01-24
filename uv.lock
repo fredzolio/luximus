@@ -295,7 +295,7 @@ wheels = [
 
 [[package]]
 name = "letta-client"
-version = "0.1.17"
+version = "0.1.19"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -304,9 +304,9 @@ dependencies = [
     { name = "pydantic-core" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/57/1a/4d037e37f233410e776cf561d66a57284a613b91df0697f23809e429bd5e/letta_client-0.1.17.tar.gz", hash = "sha256:5172af77d5f6997b641219dabc68c925130372e47ca6718430e423a457ba2e8b", size = 64676 }
+sdist = { url = "https://files.pythonhosted.org/packages/81/c1/62625c3a0bfcaa02db3717dc9dda98d57e18c3bb3726443c959e34a46630/letta_client-0.1.19.tar.gz", hash = "sha256:053fda535063ede4a74c2eff2af635524a19e10f4fca48b2649e85e3a6d19393", size = 60542 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/8e/77f61779df09e449eb4071cf1c26137d366fe3e0f483efe19e8cf594988b/letta_client-0.1.17-py3-none-any.whl", hash = "sha256:b60996bb64c574ec0352a5256e5ce8c16bf72d462c244cf867afb5da2c49151f", size = 154559 },
+    { url = "https://files.pythonhosted.org/packages/43/4e/71be08247aab89d7376cc5534f3d020585b8dd9b53ba629ba0a3863acc90/letta_client-0.1.19-py3-none-any.whl", hash = "sha256:45cdfff85a19c7cab676f27a99fd268ec535d79adde0ea828dce9d305fac2e55", size = 134575 },
 ]
 
 [[package]]
@@ -335,7 +335,7 @@ requires-dist = [
     { name = "aiomysql", specifier = ">=0.2.0" },
     { name = "alembic", specifier = ">=1.14.1" },
     { name = "fastapi", specifier = ">=0.115.7" },
-    { name = "letta-client", specifier = ">=0.1.17" },
+    { name = "letta-client", specifier = ">=0.1.19" },
     { name = "mysql-connector-python", specifier = ">=9.2.0" },
     { name = "passlib", specifier = ">=1.7.4" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.10.5" },
