@@ -35,6 +35,7 @@ class WebhookService:
                 create_onboarding_agent(user_name=new_user.name, user_number=new_user.phone)
                 return new_user
             else:
+                #create_onboarding_agent(user_name=user.name, user_number=user.phone)
                 return user
         except Exception as e:
             print(f"Erro ao criar ou buscar usuário: {e}")

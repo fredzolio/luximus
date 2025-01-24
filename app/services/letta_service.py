@@ -1,7 +1,8 @@
 import json
 import logging
+import time
 from httpx import Client
-from letta_client import Letta, MessageCreate
+from letta_client import Letta, LettaRequestConfig, MessageCreate
 import os
 from dotenv import load_dotenv
 
@@ -29,13 +30,10 @@ def extract_message_from_tool_call(tool_call):
         logging.error(f"Erro ao decodificar JSON em arguments: {e}")
         return "Erro ao processar a resposta do agente."
 
-def send_user_message_to_agent(agent_id, message):
-    """
-    Envia uma mensagem para o agente específico via Letta-AI e retorna somente a resposta final.
-    """
+def send_user_message_to_agent(agent_id, message, timeout=30):
     try:
-        # Envia a mensagem para o agente
-        response = lc.agents.messages.create(
+        # Enviar mensagem ao agente
+        response = lc.agents.messages.create_async(
             agent_id=agent_id,
             messages=[
                 MessageCreate(
@@ -44,26 +42,38 @@ def send_user_message_to_agent(agent_id, message):
                 )
             ],
         )
-        if hasattr(response, 'messages') and response.messages:
+        
+        if not response.id:
+            logging.error("A resposta da API não contém um 'response.id'.")
+            return "Erro ao processar a mensagem: ID da resposta não encontrado."
 
-            for idx, item in enumerate(response.messages):
-                message_type = item.message_type
-                if message_type == "assistant_message" and hasattr(item, 'assistant_message'):
-                    return item.assistant_message
-                if message_type == "tool_call_message" and hasattr(item, 'tool_call'):
-                    extracted_message = extract_message_from_tool_call(item.tool_call)
-                    if extracted_message:
-                        return extracted_message
-            logging.warning(f"Nenhuma resposta válida encontrada no retorno do agente {agent_id}.")
-            return "Sem resposta final do agente."
+        start_time = time.time()
+        run_done = False
+
+        while not run_done:
+            run = lc.runs.retrieve_run(response.id)
+            if run.status in ["done", "failed"]:
+                run_done = True
+            if time.time() - start_time > timeout:
+                logging.error(f"Timeout ao aguardar a execução do agente {agent_id}.")
+                return "Erro: Tempo limite excedido ao aguardar a resposta do agente."
+            
+            time.sleep(1)
+        messages = lc.runs.list_run_messages(response.id)
+        assistant_message = next(
+            (msg.assistant_message for msg in messages if hasattr(msg, "assistant_message")),
+            None
+        )
+        if assistant_message:
+            return assistant_message
         else:
-            logging.error(f"A resposta da API para o agente {agent_id} não contém 'messages' ou está vazia.")
-            return "Erro ao processar a resposta do agente."
+            logging.error(f"A resposta do agente {agent_id} não contém 'assistant_message'. Estrutura: {messages}")
+            return "Erro: Não foi possível encontrar a mensagem do agente."
 
     except Exception as e:
         logging.error(f"Erro ao enviar mensagem ao agente {agent_id}: {e}")
         return "Desculpe, ocorreu um erro ao processar sua mensagem."
-      
+
 def get_onboarding_agent_id(user_number: str):
     """
     Retorna o ID do agente de onboarding do usuário.

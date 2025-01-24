@@ -1,6 +1,6 @@
 import logging
 
-from letta_client import LlmConfig, MessageCreate, TerminalToolRule
+from letta_client import LlmConfig, MessageCreate, ChildToolRule, ToolRuleType
 from app.services.letta_service import lc
 
 def create_onboarding_agent(user_name: str, user_number: str):
@@ -10,14 +10,14 @@ def create_onboarding_agent(user_name: str, user_number: str):
     try:
         agent = lc.agents.create(
           agent_type="memgpt_agent",
-          name=f"{user_name}_onboarding",
+          name=f"{user_number}_onboarding",
           description=f"Agente que faz as configurações iniciais do sistema para o usuário chamado {user_name}",
           context_window_limit=2000000,
           include_base_tools=True,
           # tool_ids=[],
           # initial_message_sequence=[MessageCreate()],
           memory_variables={"user_name": user_name},
-          tool_rules=[TerminalToolRule(tool_name="send_message")],
+          tool_rules=[ChildToolRule(tool_name="core_memory_append", children=["send_message"])],
           tags=[
             user_number, 
             "worker", 
@@ -121,7 +121,7 @@ Primeiro nome do usuário: {user_name.split()[0]}
 - Para integrar a ferramenta de e-mail, você deve pedir ao usuário o endereço de e-mail.
 - Para integrar o Google Calendar, você deve pedir ao usuário o e-mail do Google.
 - Para integrar o Apple Calendar, você deve pedir ao usuário o e-mail da Apple.
-- Quando todas as integrações estiverem feitas, você deve informar ao usuário que as configurações iniciais foram realizadas com sucesso e que a partir de agora, 
+- Quando todas as integrações estiverem feitas e você tiver todas as informações necessárias (não faça o próximo passo sem saber todas as informações) você deve informar ao usuário que as configurações iniciais foram realizadas com sucesso e que a partir de agora, 
 ele pode começar a usar o sistema.
 \
 """
