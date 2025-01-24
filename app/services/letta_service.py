@@ -2,7 +2,7 @@ import json
 import logging
 import time
 from httpx import Client
-from letta_client import Letta, LettaRequestConfig, MessageCreate
+from letta_client import Letta, LettaRequestConfig, MessageCreate, AssistantMessage
 import os
 from dotenv import load_dotenv
 
@@ -38,7 +38,7 @@ def send_user_message_to_agent(agent_id, message, timeout=30):
             messages=[
                 MessageCreate(
                     role="user",
-                    text=message,
+                    content=message,
                 )
             ],
         )
@@ -52,7 +52,7 @@ def send_user_message_to_agent(agent_id, message, timeout=30):
 
         while not run_done:
             run = lc.runs.retrieve_run(response.id)
-            if run.status in ["done", "failed"]:
+            if run.status in ["completed", "failed"]:
                 run_done = True
             if time.time() - start_time > timeout:
                 logging.error(f"Timeout ao aguardar a execução do agente {agent_id}.")
@@ -61,7 +61,7 @@ def send_user_message_to_agent(agent_id, message, timeout=30):
             time.sleep(1)
         messages = lc.runs.list_run_messages(response.id)
         assistant_message = next(
-            (msg.assistant_message for msg in messages if hasattr(msg, "assistant_message")),
+            (msg.content for msg in messages if isinstance(msg, AssistantMessage)),
             None
         )
         if assistant_message:
@@ -82,9 +82,23 @@ def get_onboarding_agent_id(user_number: str):
         agents = lc.agents.list(tags=[user_number, "worker", "onboarding"])
         agent_id = [agent.id for agent in agents]
         if agent_id:
-          return agent_id[0]
+            return agent_id[0]
         logging.warning(f"Nenhum agente de onboarding encontrado para o usuário {user_number}.")
         return None
     except Exception as e:
         logging.error(f"Erro ao buscar agente de onboarding para o usuário {user_number}: {e}")
+        return None
+
+def get_human_block_id(agent_id: str):
+    """
+    Retorna o ID do bloco humano associado ao agente.
+    """
+    try:
+        block = lc.agents.core_memory.retrieve_block(agent_id, "human")
+        if block.id:
+            return block.id
+        logging.warning(f"Nenhum bloco humano encontrado para o agente {agent_id}.")
+        return None
+    except Exception as e:
+        logging.error(f"Erro ao buscar bloco humano para o agente {agent_id}: {e}")
         return None

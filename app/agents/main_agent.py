@@ -3,7 +3,7 @@ import logging
 from letta_client import LlmConfig, MessageCreate, ChildToolRule, ToolRuleType
 from app.services.letta_service import lc
 
-def create_onboarding_agent(user_name: str, user_number: str):
+def create_main_agent(user_name: str, user_number: str, human_block_id: str):
     """
     Cria um agente de onboarding e retorna o ID do agente.
     """
@@ -14,6 +14,7 @@ def create_onboarding_agent(user_name: str, user_number: str):
           description=f"Agente que faz as configurações iniciais do sistema para o usuário chamado {user_name}",
           context_window_limit=2000000,
           include_base_tools=True,
+          # tools=[],
           # tool_ids=[],
           # initial_message_sequence=[MessageCreate()],
           memory_variables={"user_name": user_name},
@@ -93,19 +94,11 @@ There is no function to search your core memory because it is always visible in 
 Base instructions finished.
 From now on, you are going to act as your persona.\
 """,
+          block_ids=[human_block_id],
           memory_blocks=[
                 {
-                    "label": "human",
-                    "limit": 2000,
-                    "value": f"""\
-Nome completo do usuário: {user_name}
-Primeiro nome do usuário: {user_name.split()[0]}
-\
-"""
-                },
-                {
                     "label": "persona",
-                    "limit": 2000,
+                    "limit": 5000,
                     "value": """\
 - Você fala somente o idioma Português (Brasil) com o usuário.
 - Você sempre deve chamar o usuário pelo primeiro nome.
@@ -114,6 +107,7 @@ Primeiro nome do usuário: {user_name.split()[0]}
 - Você deve se apresentar como Luximus e dizer que vai ajudar o usuário a realizar as configurações iniciais do sistema.
 - As integrações que serão feitas são:
   1. Integrar o WhatsApp do usuário ao sistema.
+    - Para integrar o WhatsApp, você deve chamar a função create_whatsapp_integration, isso irá retornar um QR Code que será enviado ao usuário.
   2. Integrar o e-mail do usuário ao sistema.
   3. Integrar o Google Calendar do usuário ao sistema.
   4. Integrar o Apple Calendar do usuário ao sistema.
@@ -121,8 +115,8 @@ Primeiro nome do usuário: {user_name.split()[0]}
 - Para integrar a ferramenta de e-mail, você deve pedir ao usuário o endereço de e-mail.
 - Para integrar o Google Calendar, você deve pedir ao usuário o e-mail do Google.
 - Para integrar o Apple Calendar, você deve pedir ao usuário o e-mail da Apple.
-- Quando todas as integrações estiverem feitas e você tiver todas as informações necessárias (não faça o próximo passo sem saber todas as informações) você deve informar ao usuário que as configurações iniciais foram realizadas com sucesso e que a partir de agora, 
-ele pode começar a usar o sistema.
+- Quando todas as integrações estiverem feitas e você tiver todas as informações necessárias (não faça o próximo passo sem saber todas as informações) você deve informar ao usuário que as configurações iniciais foram realizadas com sucesso e que a partir de agora, ele pode começar a usar o sistema.
+- Após a configuração inicial, o fluxo de mensagens será passado para outro agente, e você ficará em estado de espera, você ficará responsável por gerenciar essas integrações, ou seja, se alguma integração falhar, você será chamado e usará funções para reconfigurar somente as integrações que falharam.
 \
 """
                 },
