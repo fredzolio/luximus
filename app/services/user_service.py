@@ -1,5 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import update, delete
 from app.schemas.user import UserCreate, UserBase
 from app.models.user import User
 from app.db.session import SessionLocal as async_session
@@ -11,15 +13,24 @@ class UserRepository:
         Cria um novo usuário no banco de dados.
         """
         async with async_session() as db:
-            db_user = User(
-                name=user.name,
-                phone=user.phone,
-                cpf=user.cpf
-            )
-            db.add(db_user)
-            await db.commit()
-            await db.refresh(db_user)
-            return db_user
+            try:
+                db_user = User(
+                    name=user.name,
+                    phone=user.phone,
+                    cpf=user.cpf,
+                    is_active=user.is_active,
+                    google_calendar_integration=user.google_calendar_integration,
+                    apple_calendar_integration=user.apple_calendar_integration,
+                    email_integration=user.email_integration,
+                    whatsapp_integration=user.whatsapp_integration,
+                )
+                db.add(db_user)
+                await db.commit()
+                await db.refresh(db_user)
+                return db_user
+            except IntegrityError as e:
+                await db.rollback()
+                raise ValueError(f"Erro ao criar usuário: {e.orig}")
 
     async def get_user_by_id(self, user_id: str):
         """
@@ -53,55 +64,91 @@ class UserRepository:
         Atualiza os dados de um usuário com base no ID.
         """
         async with async_session() as db:
-            db_user = await self.get_user_by_id(user_id)
-            if not db_user:
-                return None
+            # Buscar o usuário dentro da mesma sessão
+            query = select(User).where(User.id == user_id)
+            result = await db.execute(query)
+            db_user = result.scalars().first()
 
-            for field, value in user_update.model_dump(exclude_unset=True).items():
+            if not db_user:
+                raise ValueError(f"Usuário com ID {user_id} não encontrado.")
+
+            # Atualizar os campos definidos em user_update
+            update_data = user_update.model_dump(exclude_unset=True)
+            for field, value in update_data.items():
                 setattr(db_user, field, value)
 
-            await db.commit()
-            await db.refresh(db_user)
-            return db_user
+            try:
+                await db.commit()
+                await db.refresh(db_user)
+                return db_user
+            except IntegrityError as e:
+                await db.rollback()
+                raise ValueError(f"Erro ao atualizar usuário: {e.orig}")
 
     async def update_user_by_cpf(self, cpf: str, user_update: UserBase):
         """
         Atualiza os dados de um usuário com base no CPF.
         """
         async with async_session() as db:
-            db_user = await self.get_user_by_cpf(cpf)
-            if not db_user:
-                return None
+            # Buscar o usuário dentro da mesma sessão
+            query = select(User).where(User.cpf == cpf)
+            result = await db.execute(query)
+            db_user = result.scalars().first()
 
-            for field, value in user_update.model_dump(exclude_unset=True).items():
+            if not db_user:
+                raise ValueError(f"Usuário com CPF {cpf} não encontrado.")
+
+            # Atualizar os campos definidos em user_update
+            update_data = user_update.model_dump(exclude_unset=True)
+            for field, value in update_data.items():
                 setattr(db_user, field, value)
 
-            await db.commit()
-            await db.refresh(db_user)
-            return db_user
+            try:
+                await db.commit()
+                await db.refresh(db_user)
+                return db_user
+            except IntegrityError as e:
+                await db.rollback()
+                raise ValueError(f"Erro ao atualizar usuário: {e.orig}")
 
     async def delete_user_by_id(self, user_id: str):
         """
         Deleta um usuário com base no ID.
         """
         async with async_session() as db:
-            db_user = await self.get_user_by_id(user_id)
-            if not db_user:
-                return None
+            # Buscar o usuário dentro da mesma sessão
+            query = select(User).where(User.id == user_id)
+            result = await db.execute(query)
+            db_user = result.scalars().first()
 
-            await db.delete(db_user)
-            await db.commit()
-            return db_user
+            if not db_user:
+                raise ValueError(f"Usuário com ID {user_id} não encontrado.")
+
+            try:
+                await db.delete(db_user)
+                await db.commit()
+                return db_user
+            except IntegrityError as e:
+                await db.rollback()
+                raise ValueError(f"Erro ao deletar usuário: {e.orig}")
 
     async def delete_user_by_cpf(self, cpf: str):
         """
         Deleta um usuário com base no CPF.
         """
         async with async_session() as db:
-            db_user = await self.get_user_by_cpf(cpf)
-            if not db_user:
-                return None
+            # Buscar o usuário dentro da mesma sessão
+            query = select(User).where(User.cpf == cpf)
+            result = await db.execute(query)
+            db_user = result.scalars().first()
 
-            await db.delete(db_user)
-            await db.commit()
-            return db_user
+            if not db_user:
+                raise ValueError(f"Usuário com CPF {cpf} não encontrado.")
+
+            try:
+                await db.delete(db_user)
+                await db.commit()
+                return db_user
+            except IntegrityError as e:
+                await db.rollback()
+                raise ValueError(f"Erro ao deletar usuário: {e.orig}")

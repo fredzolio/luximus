@@ -11,6 +11,7 @@ class User(Base):
     name = Column(String(50), nullable=True)
     phone = Column(String(15), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.now(), nullable=False)
     cpf = Column(String(11), unique=True, nullable=True)
     id_main_agent = Column(String(255), nullable=True) 
     id_session_wpp = Column(String(255), nullable=True)
@@ -19,7 +20,6 @@ class User(Base):
     google_calendar_integration = Column(Boolean, default=False, nullable=False)
     apple_calendar_integration = Column(Boolean, default=False, nullable=False)
     email_integration = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.now(), nullable=False)
 
     def __repr__(self):
         return f"<User(id={self.id}, name={self.name}, phone={self.phone})>"
