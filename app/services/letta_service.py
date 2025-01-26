@@ -2,7 +2,7 @@ import json
 import logging
 import time
 from httpx import Client
-from letta_client import Letta, LettaRequestConfig, MessageCreate, AssistantMessage
+from letta_client import Letta, AsyncLetta, MessageCreate, AssistantMessage
 import os
 from dotenv import load_dotenv
 
@@ -15,22 +15,7 @@ lc = Letta(
     httpx_client=custom_httpx_client,
 )
 
-def extract_message_from_tool_call(tool_call):
-    """
-    Extrai a mensagem do campo 'arguments' em 'tool_call'.
-    """
-    arguments = tool_call.arguments
-    if not arguments:
-        logging.warning("Campo 'arguments' está ausente em 'tool_call'.")
-        return None
-    try:
-        arguments_data = json.loads(arguments)
-        return arguments_data.get("message", "Ok, processei essa informação!")
-    except json.JSONDecodeError as e:
-        logging.error(f"Erro ao decodificar JSON em arguments: {e}")
-        return "Erro ao processar a resposta do agente."
-
-async def send_user_message_to_agent(agent_id, message, timeout=30):
+def send_user_message_to_agent(agent_id, message, timeout=30):
     try:
         # Enviar mensagem ao agente
         response = lc.agents.messages.create_async(
@@ -77,7 +62,7 @@ async def send_user_message_to_agent(agent_id, message, timeout=30):
 def send_system_message_to_agent(agent_id, message, timeout=30):
     try:
         # Enviar mensagem ao agente
-        lc.agents.messages.create_async(
+        lc.agents.messages.create(
             agent_id=agent_id,
             messages=[
                 MessageCreate(

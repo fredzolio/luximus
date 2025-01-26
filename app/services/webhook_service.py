@@ -28,7 +28,7 @@ class WebhookService:
             user = await WebhookService.get_or_create_user_if_not_exists(user_number, user_name)
             get_user_integration_is_running = user.integration_is_running
             if get_user_integration_is_running is None:
-                await WebhookService.perform_action_based_on_message(message, user)
+                WebhookService.perform_action_based_on_message(message, user)
             elif get_user_integration_is_running == "whatsapp":
                 flow = WhatsappIntegrationFlow(user.id)
                 await flow.load_state()
@@ -66,10 +66,10 @@ class WebhookService:
             print(f"Erro ao criar ou buscar usuário: {e}")
 
     @staticmethod
-    async def perform_action_based_on_message(message: str, user: User):
+    def perform_action_based_on_message(message: str, user: User):
         if user.id_main_agent is None or not user.whatsapp_integration or not user.apple_calendar_integration or not user.google_calendar_integration or not user.email_integration:
             agent_id = get_onboarding_agent_id(user.phone)
-            agent_response = await send_user_message_to_agent(agent_id, message)
+            agent_response = send_user_message_to_agent(agent_id, message)
         else:
-            agent_response = await send_user_message_to_agent(user.id_main_agent, message)
+            agent_response = send_user_message_to_agent(user.id_main_agent, message)
         wpp.send_message(user.phone, agent_response)

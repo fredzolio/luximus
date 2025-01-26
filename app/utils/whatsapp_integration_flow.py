@@ -102,6 +102,11 @@ class WhatsappIntegrationFlow:
         self.is_running = False
         self.flow_completed = False
         await self.save_state()
+        user = await self.get_user()
+        wpp = WhatsAppService(session_name="principal", token=os.getenv("PRINCIPAL_WPP_SESSION_TOKEN"))
+        wpp.send_message(user.phone, "Integração com o Whatsapp cancelada.")
+        user_repo = UserRepository()
+        await user_repo.set_user_integration_running(user.phone, None)
         return {"message": "Flow stopped"}
 
     async def restart(self, data: dict = None):
