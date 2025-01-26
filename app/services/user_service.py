@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
@@ -152,3 +153,37 @@ class UserRepository:
             except IntegrityError as e:
                 await db.rollback()
                 raise ValueError(f"Erro ao deletar usuário: {e.orig}")
+    
+    async def get_user_integration_is_running(self, phone: str) -> Optional[str]:
+        """
+        Obtém o status de integração em execução para um usuário baseado no número de telefone.
+        """
+        async with async_session() as db:
+            query = select(User.integration_is_running).where(User.phone == phone)
+            result = await db.execute(query)
+            return result.scalar_one_or_none()
+
+    async def set_user_integration_running(self, phone: str, msg: Optional[str] = None):
+        """
+        Define o status de integração em execução para um usuário baseado no número de telefone.
+        Se 'msg' não for fornecido, define como None.
+        """
+        async with async_session() as db:
+            # Buscar o usuário dentro da mesma sessão
+            query = select(User).where(User.phone == phone)
+            result = await db.execute(query)
+            db_user = result.scalars().first()
+
+            if not db_user:
+                raise ValueError(f"Usuário com número {phone} não encontrado.")
+
+            # Atualizar o campo 'integration_is_running'
+            db_user.integration_is_running = msg
+
+            try:
+                await db.commit()
+                await db.refresh(db_user)
+                return db_user
+            except IntegrityError as e:
+                await db.rollback()
+                raise ValueError(f"Erro ao atualizar status de integração: {e.orig}")

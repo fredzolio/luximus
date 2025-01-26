@@ -1,5 +1,7 @@
 from dotenv import load_dotenv
 import os
+from app.schemas.user import UserBase
+from app.services.user_service import UserRepository
 from app.services.whatsapp_service import WhatsAppService
 import asyncio
 
@@ -7,38 +9,84 @@ load_dotenv()
 token = os.getenv("PRINCIPAL_WPP_SESSION_TOKEN")
 wpp = WhatsAppService(session_name="principal", token=token)
 
-# 1º passo: Enviar mensagem de explicação para o usuário.
+############################################################################################################################################################################
+
 async def step_one(data):
     user = data['user']
     user_first_name = user.name.split()[0]
+    
     wpp.send_message(
-      user.phone, 
-      f"{user_first_name}, para integrarmos o seu Whatsapp com o nosso sistema, será preciso logar em uma sessão do Whatsapp Web, siga atentamente as instruções abaixo:\n\n1. Abra essa conversa em *outro* dispositivo.\n2. Abra o Whatsapp no seu *celular*.\n2. Vá até as configurações do Whatsapp e clique em *Dispositivos Conectados*.\n3. Aponte a câmera do seu celular para o *QR Code* que será exibido nessa conversa.\n4. Aguarde a confirmação da integração."
-      )
+        user.phone, 
+        f"{user_first_name}, para integrarmos o seu Whatsapp com o nosso sistema, será preciso logar em uma sessão do Whatsapp Web, siga atentamente as instruções abaixo:\n\n1. Abra essa conversa em *outro* dispositivo.\n2. Abra o Whatsapp no seu *celular*.\n3. Vá até as configurações do Whatsapp e clique em *Dispositivos Conectados*.\n4. Aponte a câmera do seu celular para o *QR Code* que será exibido nessa conversa.\n5. Aguarde a confirmação da integração."
+    )
+    wpp.send_message(
+        user.phone, 
+        f"Para prosseguir, responda 'ok' ou 'continuar'."
+    )
+    
     await asyncio.sleep(1)
-    auto_continue = True
-    message = f"Step 1 completed"
+    auto_continue = False
+    message = f"Step 1 completed: Explanation message sent to {user.name}"
     return {"message": message, "auto_continue": auto_continue}
 
 async def step_two(data):
-    exemple = data['example']
+    user = data['user']
+    
+    user_repo = UserRepository()
+    user_session = f"info_agent_{user.phone}"
+    user_wpp = WhatsAppService(session_name=user_session)
+    whatsapp_token = user_wpp.generate_token()
+    user_update = UserBase(id_session_wpp=user_session, token_wpp=whatsapp_token)
+    await user_repo.update_user_by_id(user.id, user_update)
+    wpp.send_message(
+        user.phone, 
+        f"Na próxima etapa, *você deve ser rápido*, uma vez que o código QR gerado, *expira* em segundos, por favor, garanta que já consegue escanear o código com seu celular, antes de prosseguir.\n\nPara prosseguir, responda 'ok' ou 'continuar'."
+    )
     
     await asyncio.sleep(1)  
-    auto_continue = True
-    message = f"Step 2 completed"
+    auto_continue = False
+    message = f"Step 2 completed: Session ID has been defined and saved to user {user.name}. Token has been generated and saved to user {user.name}"
     return {"message": message, "auto_continue": auto_continue}
 
 async def step_three(data):
     user = data['user']
-    task = data['task']
-    await asyncio.sleep(1)  # Substitua por uma operação real
+
+    user_wpp = WhatsAppService(session_name=user.id_session_wpp, token=user.token_wpp)
+    first_response = user_wpp.start_session()
+    await asyncio.sleep(3)
+    if first_response.get("status") == "QRCODE":
+        qr_code = user_wpp.start_session().get("qrcode")
+    else:
+        await asyncio.sleep(2)
+        qr_code = user_wpp.start_session().get("qrcode")
+    wpp.send_file(user.phone, qr_code)
+    
+    await asyncio.sleep(1)
     auto_continue = True
-    message = f"Step 3 completed for user: {user}, task: {task}"
+    message = f"Step 3 completed: QR-Code was sended for user {user.name}"
     return {"message": message, "auto_continue": auto_continue}
+
+async def step_four(data):
+    user = data['user']
+    user_wpp = WhatsAppService(session_name=user.id_session_wpp, token=user.token_wpp)
+    await asyncio.sleep(4)
+    status = user_wpp.status_session().get("status")
+    if status:
+        wpp.send_message(user.phone, "Sua integração foi realizada com sucesso! ✅")
+        message = f"Step 4 completed: Integration completed for user {user.name}"
+    else:
+        wpp.send_message(user.phone, "Algo deu errado na sua integração, tente novamente solicitando ao agente! ❌")
+        message = f"Step 4 completed: Something goes wrong and the integration is not completed for user {user.name}"
+    
+    await asyncio.sleep(1)
+    auto_continue = True
+    return {"message": message, "auto_continue": auto_continue}
+
+############################################################################################################################################################################
 
 class WhatsappIntegrationFlow:
     def __init__(self, data=None):
-        self.steps = [step_one, step_two, step_three]
+        self.steps = [step_one, step_two, step_three, step_four]
         self.data = data
         self.current_step = 0
         self.is_running = False
@@ -121,16 +169,4 @@ class WhatsappIntegrationFlow:
         current_step_func = self.steps[self.current_step]
         return await current_step_func(self.data)
 
-
-
-
-
 ############################################################################################################################################################################
-
-# async def step_two(data):
-#     exemple = data['example']
-    
-#     await asyncio.sleep(1)  
-#     auto_continue = True
-#     message = f"Step 2 completed"
-#     return {"message": message, "auto_continue": auto_continue}

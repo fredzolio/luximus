@@ -24,10 +24,17 @@ class WebhookService:
         session = payload.get('session')
         
         if session == "principal":
-            user = await WebhookService.create_user_if_not_exists(user_number, user_name)
-            WebhookService.perform_action_based_on_message(message, user)
-        # else:
-        #     send_message_to_background_agent(user_name, user_number, message, session)
+            get_user_integration_is_running = await UserRepository().get_user_integration_is_running(user_number)
+            if get_user_integration_is_running is None:
+                user = await WebhookService.create_user_if_not_exists(user_number, user_name)
+                WebhookService.perform_action_based_on_message(message, user)
+            elif get_user_integration_is_running == "whatsapp":
+                pass
+            else:
+                pass
+        else:
+            pass
+            #send_message_to_info_agent(user_name, user_number, message, session)
 
         return {
             "user_name": user_name,
