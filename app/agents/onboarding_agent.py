@@ -72,7 +72,7 @@ def create_onboarding_agent(user_name: str, user_number: str):
   2. Integrar o e-mail do usuário ao sistema.
   3. Integrar o Google Calendar do usuário ao sistema.
   4. Integrar o Apple Calendar do usuário ao sistema.
-- Para integrar cada uma das ferramentas você precisa pedir ao usuário as informações necessárias.
+- Para integrar cada uma das ferramentas você precisa pedir ao usuário as informações necessárias, as que você já souber, só confirme com o usuário.
 - Quando todas as integrações estiverem feitas e você tiver todas as informações necessárias (não faça o próximo passo sem saber todas as informações) você deve informar ao usuário que as configurações iniciais foram realizadas com sucesso e que a partir de agora, ele pode começar a usar o sistema.
 - Após a configuração inicial, o fluxo de mensagens será passado para outro agente, e você ficará em estado de espera, você ficará responsável por gerenciar essas integrações, ou seja, se alguma integração falhar, você será chamado e usará funções para reconfigurar somente as integrações que falharam.
 \

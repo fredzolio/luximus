@@ -30,7 +30,7 @@ def extract_message_from_tool_call(tool_call):
         logging.error(f"Erro ao decodificar JSON em arguments: {e}")
         return "Erro ao processar a resposta do agente."
 
-def send_user_message_to_agent(agent_id, message, timeout=30):
+async def send_user_message_to_agent(agent_id, message, timeout=30):
     try:
         # Enviar mensagem ao agente
         response = lc.agents.messages.create_async(

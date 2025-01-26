@@ -9,7 +9,7 @@ router = APIRouter(prefix="/tools", tags=["Tools"])
 logger = logging.getLogger("uvicorn.error")
 
 @router.get("/verify-integrations-status")
-async def verify_integrations_status(phone: str = Query(..., description="Número de telefone no formato '5511999999999'")):
+async def verify_integrations_status(phone: str = Query(..., description="Número de telefone no formato '551199999999'")):
     """
     Verifica o status das integrações.
     """
@@ -39,7 +39,7 @@ async def verify_integrations_status(phone: str = Query(..., description="Númer
     }
 
 @router.post("/start-whatsapp-integration")
-async def start_whatsapp_integration(phone: str = Query(..., description="Número de telefone no formato '5511999999999'")):
+async def start_whatsapp_integration(phone: str = Query(..., description="Número de telefone no formato '551199999999'")):
     """
     Inicia a integração com o WhatsApp recebendo o número de telefone via query parameters.
     """
@@ -53,7 +53,7 @@ async def start_whatsapp_integration(phone: str = Query(..., description="Númer
         logger.error(f"Formato de telefone inválido: {phone}")
         raise HTTPException(
             status_code=400,
-            detail="O número de telefone deve estar no formato DDIDDDNUMERO.\nExemplo: 5511999999999"
+            detail="O número de telefone deve estar no formato DDIDDDNUMERO.\nExemplo: 551199999999"
         )
     
     user_repo = UserRepository()
