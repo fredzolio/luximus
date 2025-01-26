@@ -12,6 +12,7 @@ class User(Base):
     phone = Column(String(15), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.now(), nullable=False)
+    integration_is_running = Column(Boolean, default=False, nullable=False)
     cpf = Column(String(11), unique=True, nullable=True)
     id_main_agent = Column(String(255), nullable=True) 
     id_session_wpp = Column(String(255), nullable=True)
