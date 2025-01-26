@@ -95,7 +95,7 @@ class WhatsAppService:
         Verifica status da sessão.
         Endpoint: GET /api/{session}/status-session
         """
-        url = f"{self.base_url}/api/{self.session_name}/status-session"
+        url = f"{self.base_url}/api/{self.session_name}/check-connection-session"
         resp = requests.get(url, headers=self._get_headers())
         resp.raise_for_status()
         return resp.json()
@@ -141,7 +141,7 @@ class WhatsAppService:
         resp.raise_for_status()
         return resp.json()
 
-    def send_image(self, phone: str, base64_str: str, filename: str, caption: str, is_group: bool = False):
+    def send_image(self, phone: str, base64_str: str, filename: str, caption: str):
         """
         Envia imagem em base64.
         Endpoint: POST /api/{session}/send-image
@@ -149,7 +149,6 @@ class WhatsAppService:
         url = f"{self.base_url}/api/{self.session_name}/send-image"
         payload = {
             "phone": phone,
-            "isGroup": is_group,
             "filename": filename,
             "caption": caption,
             "base64": base64_str

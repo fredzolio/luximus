@@ -6,6 +6,7 @@ from app.schemas.user import UserBase, UserCreate
 from app.services.user_service import UserRepository
 from app.services.whatsapp_service import WhatsAppService
 from app.agents.onboarding_agent import create_onboarding_agent
+from app.utils.whatsapp_integration_flow import WhatsappIntegrationFlow
 from .letta_service import get_human_block_id, send_user_message_to_agent, get_onboarding_agent_id
 from dotenv import load_dotenv
 
@@ -24,12 +25,14 @@ class WebhookService:
         session = payload.get('session')
         
         if session == "principal":
-            get_user_integration_is_running = await UserRepository().get_user_integration_is_running(user_number)
+            user = await WebhookService.get_or_create_user_if_not_exists(user_number, user_name)
+            get_user_integration_is_running = user.integration_is_running
             if get_user_integration_is_running is None:
-                user = await WebhookService.create_user_if_not_exists(user_number, user_name)
                 WebhookService.perform_action_based_on_message(message, user)
             elif get_user_integration_is_running == "whatsapp":
-                pass
+                flow = WhatsappIntegrationFlow(user.id)
+                await flow.load_state()
+                await flow.handle_message(message)
             else:
                 pass
         else:
@@ -44,7 +47,7 @@ class WebhookService:
         }
 
     @staticmethod
-    async def create_user_if_not_exists(user_number: str, user_name: str):
+    async def get_or_create_user_if_not_exists(user_number: str, user_name: str):
         user_repo = UserRepository()
         try:
             user = await user_repo.get_user_by_phone(phone=user_number)
