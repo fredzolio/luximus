@@ -73,6 +73,22 @@ def send_user_message_to_agent(agent_id, message, timeout=30):
     except Exception as e:
         logging.error(f"Erro ao enviar mensagem ao agente {agent_id}: {e}")
         return "Desculpe, ocorreu um erro ao processar sua mensagem."
+    
+def send_system_message_to_agent(agent_id, message, timeout=30):
+    try:
+        # Enviar mensagem ao agente
+        lc.agents.messages.create_async(
+            agent_id=agent_id,
+            messages=[
+                MessageCreate(
+                    role="system",
+                    content=message,
+                )
+            ],
+        )
+    except Exception as e:
+        logging.error(f"Erro ao enviar mensagem ao agente {agent_id}: {e}")
+        return "Desculpe, ocorreu um erro ao processar sua mensagem."
 
 def get_onboarding_agent_id(user_number: str):
     """

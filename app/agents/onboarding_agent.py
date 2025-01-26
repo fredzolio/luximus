@@ -1,6 +1,6 @@
 import logging
 
-from letta_client import LlmConfig, ChildToolRule
+from letta_client import LlmConfig, ChildToolRule, TerminalToolRule
 from app.services.letta_service import lc
 from app.utils.system_prompt_text import system_prompt_text
 
@@ -15,15 +15,17 @@ def create_onboarding_agent(user_name: str, user_number: str):
           description=f"Agente que faz as configurações iniciais do sistema para o usuário chamado {user_name}",
           context_window_limit=2000000,
           include_base_tools=True,
-          # tools=[],
-          # tool_ids=[],
+          tools=[
+            "verify_integrations_status",
+            "start_whatsapp_integration",
+            ],
           memory_variables={"user_name": user_name},
           tool_rules=[
             ChildToolRule(tool_name="core_memory_append", children=["send_message"]),
             ChildToolRule(tool_name="archival_memory_insert", children=["send_message"]),
             ChildToolRule(tool_name="core_memory_replace", children=["send_message"]),
             ChildToolRule(tool_name="conversation_search", children=["send_message"]),
-            ChildToolRule(tool_name="archival_memory_search", children=["send_message"]),           
+            ChildToolRule(tool_name="archival_memory_search", children=["send_message"]),        
             ],
           tags=[
             user_number, 
@@ -48,6 +50,7 @@ def create_onboarding_agent(user_name: str, user_number: str):
                     "value": f"""\
 - Nome completo do usuário: {user_name}
 - Primeiro nome do usuário: {user_name.split()[0]}
+- Número de telefone do usuário: {user_number}
 \
 """
                 },
@@ -61,16 +64,15 @@ def create_onboarding_agent(user_name: str, user_number: str):
 - Você deve sempre ser educado e gentil.
 - Você é um assistente de configuração inicial, você irá ajudar o usuário a configurar algumas coisas e integrar ferramentas no sistema.
 - Você deve se apresentar como Luximus e dizer que vai ajudar o usuário a realizar as configurações iniciais do sistema.
+- Você pode consultar quais integrações já foram feitas com o usuário através da função verify_integrations_status.
 - As integrações que serão feitas são:
   1. Integrar o WhatsApp do usuário ao sistema.
-    - Para integrar o WhatsApp, você deve chamar a função create_whatsapp_integration, isso irá retornar um QR Code que será enviado ao usuário.
+    - Para integrar o WhatsApp, você deve chamar a função start_whatsapp_integration, isso irá iniciar um fluxo interno no sistema para integrar o whatsapp.
+    - Você deve esperar o sistema retornar que a integração foi feita com sucesso ou que houve um erro.
   2. Integrar o e-mail do usuário ao sistema.
   3. Integrar o Google Calendar do usuário ao sistema.
   4. Integrar o Apple Calendar do usuário ao sistema.
 - Para integrar cada uma das ferramentas você precisa pedir ao usuário as informações necessárias.
-- Para integrar a ferramenta de e-mail, você deve pedir ao usuário o endereço de e-mail.
-- Para integrar o Google Calendar, você deve pedir ao usuário o e-mail do Google.
-- Para integrar o Apple Calendar, você deve pedir ao usuário o e-mail da Apple.
 - Quando todas as integrações estiverem feitas e você tiver todas as informações necessárias (não faça o próximo passo sem saber todas as informações) você deve informar ao usuário que as configurações iniciais foram realizadas com sucesso e que a partir de agora, ele pode começar a usar o sistema.
 - Após a configuração inicial, o fluxo de mensagens será passado para outro agente, e você ficará em estado de espera, você ficará responsável por gerenciar essas integrações, ou seja, se alguma integração falhar, você será chamado e usará funções para reconfigurar somente as integrações que falharam.
 \

@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 from app.routers import user_router
-from app.routers import webhook
+from app.routers import webhook, tools
 
 
 app = FastAPI(title="Luximus API", version="0.1.0")
 
-app.include_router(user_router.router)
 app.include_router(webhook.router)
+app.include_router(tools.router)
 
 @app.get("/")
 def read_root():

@@ -3,6 +3,7 @@ import asyncio
 from app.models.user import User
 from app.services.flow_repository import FlowRepository
 from app.schemas.user import UserBase
+from app.services.letta_service import get_onboarding_agent_id, send_system_message_to_agent
 from app.services.user_service import UserRepository
 from app.services.whatsapp_service import WhatsAppService
 
@@ -211,6 +212,7 @@ class WhatsappIntegrationFlow:
         wpp = WhatsAppService(session_name="principal", token=os.getenv("PRINCIPAL_WPP_SESSION_TOKEN"))
         attempt = 0
         status = None
+        onboarding_agent_id = get_onboarding_agent_id(user.phone)
         while attempt < 15 and status != "Connected":
             await asyncio.sleep(2)
             status = user_wpp.status_session().get("message")
@@ -220,9 +222,11 @@ class WhatsappIntegrationFlow:
             wpp.send_message(user.phone, "Sua integração foi realizada com sucesso! ✅")
             user_update = UserBase(whatsapp_integration=True)
             await user_repo.update_user_by_id(user.id, user_update)
+            send_system_message_to_agent(onboarding_agent_id, "Integração do Whatsapp realizada com sucesso!. Pode continuar com as próximas integrações.")
             message = f"Step 4 completed: Integration completed for user {user.name}"
         else:
             wpp.send_message(user.phone, "Algo deu errado na sua integração, tente novamente solicitando ao agente! ❌")
+            send_system_message_to_agent(onboarding_agent_id, "Integração do Whatsapp falhou!. Você deve perguntar ao usuário se ele quer tentar novamente.")
             message = f"Step 4 completed: Something went wrong and the integration is not completed for user {user.name}"
         
         user_update = UserBase(integration_is_running=None)
