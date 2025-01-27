@@ -13,7 +13,7 @@ async def verify_integrations_status(phone: str = Query(..., description="Númer
     """
     Verifica o status das integrações.
     """
-    phone_pattern = re.compile(r'^55\d{10}$')
+    phone_pattern = re.compile(r'^55\d{10,11}$')
     if not phone:
         logger.error("O número de telefone é obrigatório.")
         raise HTTPException(status_code=400, detail="O número de telefone é obrigatório.")
@@ -45,7 +45,7 @@ async def start_whatsapp_integration(phone: str = Query(..., description="Númer
     """
 
     # Validação do número de telefone
-    phone_pattern = re.compile(r'^55\d{10}$')
+    phone_pattern = re.compile(r'^55\d{10,11}$')
     if not phone:
         logger.error("O número de telefone é obrigatório.")
         raise HTTPException(status_code=400, detail="O número de telefone é obrigatório.")

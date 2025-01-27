@@ -3,7 +3,7 @@ import logging
 from celery import shared_task
 import os
 
-from letta_client import MessageCreate, AssistantMessage
+from letta_client import MessageCreate, AssistantMessage, ToolCallMessage
 from app.services.user_service import UserRepository
 from app.utils.celery_imports import lc, get_phone_tag
 from app.services.whatsapp_service import WhatsAppService
@@ -90,12 +90,26 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
             (msg.content for msg in messages if isinstance(msg, AssistantMessage)),
             None
         )
-        user = async_to_sync(user_repo.get_user_by_phone)(phone)
-        integration_status = user.integration_is_running
-        if assistant_message and integration_status is None:
-            wpp.send_message(phone, assistant_message)
-        elif assistant_message and integration_status is not None:
-            pass
+
+        send_message = True
+        
+        tool_called = next(
+            (msg.tool_call.name for msg in messages if isinstance(msg, ToolCallMessage)),
+            None
+        )
+        
+        if tool_called:
+            flagged_tools = any([
+                "start_whatsapp_integration" in tool_called
+            ])
+            if flagged_tools:
+                send_message = False
+        
+        if assistant_message:
+            if send_message:
+                wpp.send_message(phone, assistant_message)
+            else:
+                pass
         else:
             logging.error(f"A resposta do agente {agent_id} não contém 'assistant_message'. Estrutura: {messages}")
             wpp.send_message(phone, "Erro: Não foi possível encontrar a mensagem do agente.")

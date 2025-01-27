@@ -1,3 +1,4 @@
+import asyncio
 import os
 from app.flows.create_agents_flow import CreateAgentsFlow
 from app.models.user import User
@@ -16,10 +17,16 @@ wpp = WhatsAppService(session_name="principal", token=token)
 class WebhookService:
     @staticmethod
     async def process_onmessage_event(payload: dict):
-        user_name = payload.get("notifyName")
-        user_number = payload.get("from", "").replace("@c.us", "")
+        user_name = payload["sender"]["pushname"]
+        user_number = payload["sender"]["id"].replace("@c.us", "")
         message = payload.get("body")
         session = payload.get("session")
+        msg_type = payload.get("type")
+        is_group = payload.get("isGroupMsg")
+        group_id = payload.get("from")
+        
+        if msg_type != "chat":
+            return {"status": "ignored", "message": "Evento não processado."}
 
         try:
             if session == "principal":
@@ -38,9 +45,11 @@ class WebhookService:
                 await background_agent_archival_memory_insert(
                     session=session,
                     message=message,
-                    origem="whatsapp",
+                    origem="WhatsApp",
                     phone=user_number,
-                    name=user_name
+                    name=user_name,
+                    is_group=is_group,
+                    group_id=group_id
                 )
 
             return {

@@ -4,9 +4,9 @@ from letta_client import LlmConfig, ChildToolRule
 from app.services.letta_service import lc
 from app.utils.system_prompt_text import system_prompt_text
 
-def create_background_agent(user_name: str, user_number: str, human_block_id: str):
+def create_background_agent(user_name: str, user_number: str, human_block_id: str, main_agent_id: str):
     """
-    Cria um agente de background e retorna o ID do agente.
+    Cria um agente de background e retorna o agente.
     """
     try:
         agent = lc.agents.create(
@@ -61,7 +61,7 @@ def create_background_agent(user_name: str, user_number: str, human_block_id: st
     - Mensagens do apple calendar do usuário.
 - Use SEMPRE as funções/ferramentas disponíveis para você.
 - O sistema sempre irá te notificar para você buscar informações na archival_memory.
-- Você pode se comunicar com o agente principal que tem a tag "main" para informá-lo sobre informações importantes e solicitar a ele que faça algo, como informar o usuário de uma reunião importante ou notificar o usuário sobre um contato do whatsapp que precisa de atenção.
+- Você pode se comunicar com o agente principal(ID: {main_agent_id}) para informá-lo sobre informações importantes e solicitar a ele que faça algo, como informar o usuário de uma reunião importante ou notificar o usuário sobre um contato do whatsapp que precisa de atenção.
 - Para se comunicar com o agente principal do usuário seja claro, objetivo e bem organizado, além de sempre informar o motivo da comunicação e o que você deseja que ele faça.
 - Para salvar na archival memory, seja bem organizado e estruture a memória para ficar fácil de encontrar quando você precisar buscar.
 \

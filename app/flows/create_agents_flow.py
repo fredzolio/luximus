@@ -145,7 +145,7 @@ class CreateAgentsFlow:
         onboarding_agent = create_onboarding_agent(user_name=user.name, user_number=user.phone)
         human_block_id = get_human_block_id(onboarding_agent.id)
         main_agent = create_main_agent(user_name=user.name, user_number=user.phone, human_block_id=human_block_id)
-        create_background_agent(user_name=user.name, user_number=user.phone, human_block_id=human_block_id)
+        create_background_agent(user_name=user.name, user_number=user.phone, human_block_id=human_block_id, main_agent_id=main_agent.id)
         user_main_agent_id_update = UserBase(id_main_agent=main_agent.id)
         await self.user_repo.update_user_by_id(user.id, user_main_agent_id_update)
         

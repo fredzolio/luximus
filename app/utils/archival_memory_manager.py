@@ -14,7 +14,7 @@ load_dotenv()
 brazil_timezone = pytz.timezone("America/Sao_Paulo")
 current_time = datetime.now(brazil_timezone)
 
-async def background_agent_archival_memory_insert(session: str, message: str, origem: str, phone: str = None, name: str = None):
+async def background_agent_archival_memory_insert(session: str, message: str, origem: str, phone: str = None, name: str = None, is_group: bool = False, group_id: str = None):
     """
     Insere uma mensagem na memória arquivística do agente.
     """
@@ -32,6 +32,11 @@ async def background_agent_archival_memory_insert(session: str, message: str, or
       text += f"""\
 - Contato:          {name if name else "Desconhecido"}
 - Número do contato: {phone if phone else "Desconhecido"}
+"""
+
+    if is_group:
+      text += f"""\
+- Grupo ID:          {group_id}
 """
     
     try:
