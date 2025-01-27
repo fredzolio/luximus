@@ -25,7 +25,8 @@ def create_onboarding_agent(user_name: str, user_number: str):
             ChildToolRule(tool_name="archival_memory_insert", children=["send_message"]),
             ChildToolRule(tool_name="core_memory_replace", children=["send_message"]),
             ChildToolRule(tool_name="conversation_search", children=["send_message"]),
-            ChildToolRule(tool_name="archival_memory_search", children=["send_message"]),     
+            ChildToolRule(tool_name="archival_memory_search", children=["send_message"]),
+            TerminalToolRule(tool_name="start_whatsapp_integration")  
             ],
           tags=[
             user_number, 

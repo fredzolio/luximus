@@ -1,14 +1,14 @@
-# app/utils/celery_tasks.py
-
 import time
 import logging
 from celery import shared_task
 import os
 
 from letta_client import MessageCreate, AssistantMessage
+from app.services.user_service import UserRepository
 from app.utils.celery_imports import lc, get_phone_tag
 from app.services.whatsapp_service import WhatsAppService
 import redis
+from asgiref.sync import async_to_sync
 
 # Inicializar WhatsAppService
 wpp = WhatsAppService(session_name="principal", token=os.getenv("PRINCIPAL_WPP_SESSION_TOKEN"))
@@ -58,15 +58,14 @@ def send_message_task(agent_id: str, message: str):
 
     except Exception as e:
         logging.error(f"Erro ao enviar mensagem ao agente {agent_id}: {e}")
-        phone = get_phone_tag(agent_id)
-        if phone:
-            wpp.send_message(phone, "Desculpe, ocorreu um erro ao processar sua mensagem.")
 
 @shared_task
-def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_interval: int = 2):
+def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_interval: int = 1):
     """
     Tarefa Celery para verificar o status da execução e enviar a resposta ao usuário quando concluída.
     """
+    user_repo = UserRepository()
+    
     try:
         start_time = time.time()
         phone = redis_client.get(f"run:{run_id}")  # Recuperar phone do Redis
@@ -91,9 +90,12 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
             (msg.content for msg in messages if isinstance(msg, AssistantMessage)),
             None
         )
-
-        if assistant_message:
+        user = async_to_sync(user_repo.get_user_by_phone)(phone)
+        integration_status = user.integration_is_running
+        if assistant_message and integration_status is None:
             wpp.send_message(phone, assistant_message)
+        elif assistant_message and integration_status is not None:
+            pass
         else:
             logging.error(f"A resposta do agente {agent_id} não contém 'assistant_message'. Estrutura: {messages}")
             wpp.send_message(phone, "Erro: Não foi possível encontrar a mensagem do agente.")
@@ -103,5 +105,3 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
 
     except Exception as e:
         logging.error(f"Erro ao verificar o status da run {run_id} para o agente {agent_id}: {e}")
-        if phone:
-            wpp.send_message(phone, "Desculpe, ocorreu um erro ao processar sua mensagem.")

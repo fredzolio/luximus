@@ -10,7 +10,6 @@ def send_user_message_to_agent(agent_id: str, message: str):
     Envia uma mensagem ao agente e processa a resposta de forma assíncrona.
     """
     try:
-        # Enfileirar a tarefa Celery
         send_message_task.delay(agent_id, message)
         return "Sua mensagem está sendo processada. Você será notificado assim que receber uma resposta."
     except Exception as e:
@@ -38,7 +37,22 @@ def get_onboarding_agent_id(user_number: str):
     Retorna o ID do agente de onboarding do usuário.
     """
     try:
-        agents = lc.agents.list(tags=[user_number, "worker", "onboarding"])
+        agents = lc.agents.list(tags=[user_number, "worker", "onboarding"], match_all_tags=True)
+        agent_id = [agent.id for agent in agents]
+        if agent_id:
+            return agent_id[0]
+        logging.warning(f"Nenhum agente de onboarding encontrado para o usuário {user_number}.")
+        return None
+    except Exception as e:
+        logging.error(f"Erro ao buscar agente de onboarding para o usuário {user_number}: {e}")
+        return None
+    
+def get_background_agent_id(user_number: str):
+    """
+    Retorna o ID do agente de onboarding do usuário.
+    """
+    try:
+        agents = lc.agents.list(tags=[user_number, "background"], match_all_tags=True)
         agent_id = [agent.id for agent in agents]
         if agent_id:
             return agent_id[0]

@@ -6,7 +6,7 @@ from app.utils.system_prompt_text import system_prompt_text
 
 def create_main_agent(user_name: str, user_number: str, human_block_id: str):
     """
-    Cria um agente de onboarding e retorna o ID do agente.
+    Cria um agente principal e retorna o ID do agente.
     """
     try:
         agent = lc.agents.create(

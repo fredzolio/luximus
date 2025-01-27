@@ -34,7 +34,6 @@ class WhatsappIntegrationFlow:
             self.flow_completed = flow_state.get("flow_completed", None)
             self.data = flow_state.get("data", {})
         else:
-            # Se não houver estado salvo, inicialize um novo
             await self.save_state()
 
     async def save_state(self):
@@ -105,9 +104,8 @@ class WhatsappIntegrationFlow:
         user = await self.get_user()
         onboarding_agent_id = get_onboarding_agent_id(user.phone)
         wpp = WhatsAppService(session_name="principal", token=os.getenv("PRINCIPAL_WPP_SESSION_TOKEN"))
-        wpp.send_message(user.phone, "Você cancelou a integração com o Whatsapp.")
+        wpp.send_message(user.phone, "```Você cancelou a integração com o Whatsapp.```")
         send_user_message_to_agent(onboarding_agent_id, "O usuário cancelou a integração com o Whatsapp. Pergunte a ele se deseja tentar novamente.")
-        #wpp.send_message(user.phone, agent_msg)
         user_repo = UserRepository()
         await user_repo.set_user_integration_running(user.phone, None)
         return {"message": "Flow stopped"}
@@ -133,7 +131,7 @@ class WhatsappIntegrationFlow:
         else:
             user = await self.get_user()
             wpp = WhatsAppService(session_name="principal", token=os.getenv("PRINCIPAL_WPP_SESSION_TOKEN"))
-            wpp.send_message(user.phone, "Comando inválido. Use 'iniciar', 'continuar', 'cancelar' ou 'reiniciar'.")
+            wpp.send_message(user.phone, "```Comando inválido. Use 'iniciar', 'continuar', 'cancelar' ou 'reiniciar'.```")
             return {"error": "Invalid command. Use 'start', 'continue', 'stop', or 'restart'."}
 
     async def execute_current_step(self):
@@ -155,7 +153,7 @@ class WhatsappIntegrationFlow:
         )
         wpp.send_message(
             user.phone, 
-            f"Para prosseguir, responda 'ok' ou 'continuar'."
+            f"```Para prosseguir, responda 'ok' ou 'continuar', para cancelar, responda 'cancelar'.```"
         )
         
         await asyncio.sleep(1)
@@ -176,7 +174,11 @@ class WhatsappIntegrationFlow:
         wpp = WhatsAppService(session_name="principal", token=os.getenv("PRINCIPAL_WPP_SESSION_TOKEN"))
         wpp.send_message(
             user.phone, 
-            f"Na próxima etapa, *você deve ser rápido*, uma vez que o código QR gerado, *expira* em segundos, por favor, garanta que já consegue escanear o código com seu celular, antes de prosseguir.\n\nPara prosseguir, responda 'ok' ou 'continuar'."
+            f"Na próxima etapa, *você deve ser rápido*, uma vez que o código QR gerado, *expira* em segundos, por favor, garanta que já consegue escanear o código com seu celular, antes de prosseguir."
+        )
+        wpp.send_message(
+            user.phone, 
+            f"```Para prosseguir, responda 'ok' ou 'continuar', para cancelar, responda 'cancelar'.```"
         )
         
         await asyncio.sleep(1)  
@@ -227,16 +229,14 @@ class WhatsappIntegrationFlow:
             attempt += 1
         
         if status == "Connected":
-            wpp.send_message(user.phone, "Sua integração foi realizada com sucesso! ✅")
+            wpp.send_message(user.phone, "```Sua integração foi realizada com sucesso!``` ✅")
             user_update = UserBase(whatsapp_integration=True)
             await user_repo.update_user_by_id(user.id, user_update)
             send_user_message_to_agent(onboarding_agent_id, "Integração do Whatsapp realizada com sucesso!")
-            #wpp.send_message(user.phone, agent_msg)
             message = f"Step 4 completed: Integration completed for user {user.name}"
         else:
-            wpp.send_message(user.phone, "Algo deu errado na sua integração, tente novamente solicitando ao agente! ❌")
-            send_user_message_to_agent(onboarding_agent_id, "Integração do Whatsapp falhou!. Você deve perguntar ao usuário se ele quer tentar novamente.")
-            #wpp.send_message(user.phone, agent_msg)
+            wpp.send_message(user.phone, "```Algo deu errado na sua integração, o QR-Code pode ter expirado.``` ❌")
+            send_user_message_to_agent(onboarding_agent_id, "Integração do Whatsapp falhou!. Você deve perguntar ao usuário se ele quer tentar novamente. Informe a ele que o motivo pode ter sido a expiração do QR-Code, enfatize o fato de que ele deve ser rápido.")
             message = f"Step 4 completed: Something went wrong and the integration is not completed for user {user.name}"
         
         user_update = UserBase(integration_is_running=None)

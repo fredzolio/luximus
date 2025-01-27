@@ -1,13 +1,12 @@
 import os
-from letta_client import MessageCreate
-from app.agents.main_agent import create_main_agent
+from app.flows.create_agents_flow import CreateAgentsFlow
 from app.models.user import User
-from app.schemas.user import UserBase, UserCreate
+from app.schemas.user import UserCreate
 from app.services.user_service import UserRepository
 from app.services.whatsapp_service import WhatsAppService
-from app.agents.onboarding_agent import create_onboarding_agent
 from app.flows.whatsapp_integration_flow import WhatsappIntegrationFlow
-from .letta_service import get_human_block_id, send_user_message_to_agent, get_onboarding_agent_id
+from app.utils.archival_memory_manager import background_agent_archival_memory_insert
+from .letta_service import send_user_message_to_agent, get_onboarding_agent_id
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,61 +14,86 @@ token = os.getenv("PRINCIPAL_WPP_SESSION_TOKEN")
 wpp = WhatsAppService(session_name="principal", token=token)
 
 class WebhookService:
-    
-    
     @staticmethod
     async def process_onmessage_event(payload: dict):
-        user_name = payload.get('notifyName')
-        user_number = payload.get('from').replace("@c.us", "")
-        message = payload.get('body')
-        session = payload.get('session')
-        
-        if session == "principal":
-            user = await WebhookService.get_or_create_user_if_not_exists(user_number, user_name)
-            get_user_integration_is_running = user.integration_is_running
-            if get_user_integration_is_running is None:
-                WebhookService.perform_action_based_on_message(message, user)
-            elif get_user_integration_is_running == "whatsapp":
-                flow = WhatsappIntegrationFlow(user.id)
-                await flow.load_state()
-                await flow.handle_message(message)
-            else:
-                pass
-        else:
-            pass
-            #send_message_to_info_agent(user_name, user_number, message, session)
+        user_name = payload.get("notifyName")
+        user_number = payload.get("from", "").replace("@c.us", "")
+        message = payload.get("body")
+        session = payload.get("session")
 
-        return {
-            "user_name": user_name,
-            "user_number": user_number,
-            "message": message,
-            "session": session
-        }
+        try:
+            if session == "principal":
+                user = await WebhookService.get_or_create_user_if_not_exists(user_number, user_name)
+
+                integration_status = user.integration_is_running
+                if integration_status is None:
+                    WebhookService.perform_action_based_on_message(message, user)
+                elif integration_status == "whatsapp":
+                    flow = WhatsappIntegrationFlow(user.id)
+                    await flow.load_state()
+                    await flow.handle_message(message)
+                else:
+                    pass
+            else:
+                await background_agent_archival_memory_insert(
+                    session=session,
+                    message=message,
+                    origem="whatsapp",
+                    phone=user_number,
+                    name=user_name
+                )
+
+            return {
+                "user_name": user_name,
+                "user_number": user_number,
+                "message": message,
+                "session": session
+            }
+
+        except Exception as e:
+            print(f"Erro ao processar evento de mensagem (User: {user_name}, Number: {user_number}): {e}")
+            raise e
+
 
     @staticmethod
     async def get_or_create_user_if_not_exists(user_number: str, user_name: str):
         user_repo = UserRepository()
         try:
             user = await user_repo.get_user_by_phone(phone=user_number)
-            if not user:
-                wpp.send_message(user_number, f"Olá, *{user_name}*.\n\nComo é sua primeira vez por aqui, irei criar o seu perfil no sistema, *aguarde um momento*.")
-                new_user = await user_repo.create_user(user=UserCreate(name=user_name, phone=user_number))
-                onboarding_agent = create_onboarding_agent(user_name=new_user.name, user_number=new_user.phone)
-                human_block_id = get_human_block_id(onboarding_agent.id)
-                main_agent = create_main_agent(user_name=new_user.name, user_number=new_user.phone, human_block_id=human_block_id)
-                user_main_agent_id_update = UserBase(id_main_agent=main_agent.id)
-                await user_repo.update_user_by_id(new_user.id, user_main_agent_id_update)
-                return new_user
-            else:
+            
+            if user:
                 return user
+
+            wpp.send_message(
+                user_number, 
+                f"Olá, *{user_name}*.\n\nComo é sua primeira vez por aqui, irei criar o seu perfil no sistema, *aguarde um momento*."
+            )
+            new_user = await user_repo.create_user(user=UserCreate(name=user_name, phone=user_number))
+            
+            agents_flow = CreateAgentsFlow(new_user.id)
+            await agents_flow.load_state()
+            await agents_flow.restart()
+            return new_user
+
         except Exception as e:
-            print(f"Erro ao criar ou buscar usuário: {e}")
+            print(f"Erro ao criar ou buscar usuário (Número: {user_number}, Nome: {user_name}): {e}")
+            raise e
+
 
     @staticmethod
     def perform_action_based_on_message(message: str, user: User):
-        if user.id_main_agent is None or not user.whatsapp_integration or not user.apple_calendar_integration or not user.google_calendar_integration or not user.email_integration:
-            agent_id = get_onboarding_agent_id(user.phone)
-            send_user_message_to_agent(agent_id, message)
-        else:
-            send_user_message_to_agent(user.id_main_agent, message)
-        #wpp.send_message(user.phone, agent_response)
+        is_user_fully_integrated = all([
+            user.id_main_agent,
+            user.whatsapp_integration,
+            user.apple_calendar_integration,
+            user.google_calendar_integration,
+            user.email_integration
+        ])
+
+        agent_id = (
+            user.id_main_agent if is_user_fully_integrated
+            else get_onboarding_agent_id(user.phone)
+        )
+        
+        send_user_message_to_agent(agent_id, message)
+
