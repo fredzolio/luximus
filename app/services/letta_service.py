@@ -1,10 +1,13 @@
 import json
 import logging
+import re
 import time
 from httpx import Client
 from letta_client import Letta, AsyncLetta, MessageCreate, AssistantMessage
 import os
 from dotenv import load_dotenv
+
+from app.services.whatsapp_service import WhatsAppService
 
 load_dotenv()
 
@@ -15,7 +18,9 @@ lc = Letta(
     httpx_client=custom_httpx_client,
 )
 
-def send_user_message_to_agent(agent_id, message, timeout=30):
+wpp = WhatsAppService(session_name="principal", token=os.getenv("PRINCIPAL_WPP_SESSION_TOKEN"))
+
+def send_user_message_to_agent(agent_id, message, timeout=15):
     try:
         # Enviar mensagem ao agente
         response = lc.agents.messages.create_async(
@@ -41,9 +46,8 @@ def send_user_message_to_agent(agent_id, message, timeout=30):
                 run_done = True
             if time.time() - start_time > timeout:
                 logging.error(f"Timeout ao aguardar a execução do agente {agent_id}.")
-                return "Erro: Tempo limite excedido ao aguardar a resposta do agente."
-            
-            time.sleep(1)
+                return "Processando a sua solicitação. 😊"
+    
         messages = lc.runs.list_run_messages(response.id)
         assistant_message = next(
             (msg.content for msg in messages if isinstance(msg, AssistantMessage)),
@@ -62,7 +66,7 @@ def send_user_message_to_agent(agent_id, message, timeout=30):
 def send_system_message_to_agent(agent_id, message, timeout=30):
     try:
         # Enviar mensagem ao agente
-        lc.agents.messages.create(
+        lc.agents.messages.create_async(
             agent_id=agent_id,
             messages=[
                 MessageCreate(
@@ -103,3 +107,9 @@ def get_human_block_id(agent_id: str):
     except Exception as e:
         logging.error(f"Erro ao buscar bloco humano para o agente {agent_id}: {e}")
         return None
+    
+def get_phone_tag(tags):
+    for tag in tags:
+        if re.search(r'\d+', tag):
+            return tag
+    return None

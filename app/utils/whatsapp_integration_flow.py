@@ -3,7 +3,7 @@ import asyncio
 from app.models.user import User
 from app.services.flow_repository import FlowRepository
 from app.schemas.user import UserBase
-from app.services.letta_service import get_onboarding_agent_id, send_system_message_to_agent
+from app.services.letta_service import get_onboarding_agent_id, send_user_message_to_agent
 from app.services.user_service import UserRepository
 from app.services.whatsapp_service import WhatsAppService
 
@@ -103,8 +103,11 @@ class WhatsappIntegrationFlow:
         self.flow_completed = False
         await self.save_state()
         user = await self.get_user()
+        onboarding_agent_id = get_onboarding_agent_id(user.phone)
         wpp = WhatsAppService(session_name="principal", token=os.getenv("PRINCIPAL_WPP_SESSION_TOKEN"))
-        wpp.send_message(user.phone, "Integração com o Whatsapp cancelada.")
+        wpp.send_message(user.phone, "Você cancelou a integração com o Whatsapp.")
+        agent_msg = send_user_message_to_agent(onboarding_agent_id, "O usuário cancelou a integração com o Whatsapp. Pergunte a ele se deseja tentar novamente.")
+        wpp.send_message(user.phone, agent_msg)
         user_repo = UserRepository()
         await user_repo.set_user_integration_running(user.phone, None)
         return {"message": "Flow stopped"}
@@ -227,11 +230,13 @@ class WhatsappIntegrationFlow:
             wpp.send_message(user.phone, "Sua integração foi realizada com sucesso! ✅")
             user_update = UserBase(whatsapp_integration=True)
             await user_repo.update_user_by_id(user.id, user_update)
-            send_system_message_to_agent(onboarding_agent_id, "Integração do Whatsapp realizada com sucesso!. Pode continuar com as próximas integrações.")
+            agent_msg = send_user_message_to_agent(onboarding_agent_id, "Integração do Whatsapp realizada com sucesso!")
+            wpp.send_message(user.phone, agent_msg)
             message = f"Step 4 completed: Integration completed for user {user.name}"
         else:
             wpp.send_message(user.phone, "Algo deu errado na sua integração, tente novamente solicitando ao agente! ❌")
-            send_system_message_to_agent(onboarding_agent_id, "Integração do Whatsapp falhou!. Você deve perguntar ao usuário se ele quer tentar novamente.")
+            agent_msg = send_user_message_to_agent(onboarding_agent_id, "Integração do Whatsapp falhou!. Você deve perguntar ao usuário se ele quer tentar novamente.")
+            wpp.send_message(user.phone, agent_msg)
             message = f"Step 4 completed: Something went wrong and the integration is not completed for user {user.name}"
         
         user_update = UserBase(integration_is_running=None)

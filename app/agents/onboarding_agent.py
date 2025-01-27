@@ -25,7 +25,7 @@ def create_onboarding_agent(user_name: str, user_number: str):
             ChildToolRule(tool_name="archival_memory_insert", children=["send_message"]),
             ChildToolRule(tool_name="core_memory_replace", children=["send_message"]),
             ChildToolRule(tool_name="conversation_search", children=["send_message"]),
-            ChildToolRule(tool_name="archival_memory_search", children=["send_message"]),        
+            ChildToolRule(tool_name="archival_memory_search", children=["send_message"]),     
             ],
           tags=[
             user_number, 
@@ -33,13 +33,13 @@ def create_onboarding_agent(user_name: str, user_number: str):
             "onboarding"
           ],
           llm_config=LlmConfig(
-            model= "gemini-1.5-pro-latest",
+            model= "gemini-2.0-flash-exp",
             model_endpoint_type= "google_ai",
             model_endpoint= "https://generativelanguage.googleapis.com",
             model_wrapper= None,
-            context_window= 2000000,
+            context_window= 1048576,
             put_inner_thoughts_in_kwargs= True,
-            handle= "google_ai/gemini-1.5-pro-latest"
+            handle= "google_ai/gemini-2.0-flash-exp"
           ),
           embedding="letta/letta-free",
           system=system_prompt_text,
