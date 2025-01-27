@@ -1,66 +1,20 @@
-import json
 import logging
 import re
-import time
-from httpx import Client
-from letta_client import Letta, AsyncLetta, MessageCreate, AssistantMessage
-import os
-from dotenv import load_dotenv
+from letta_client import  MessageCreate
+from app.utils.tasks import send_message_task
 
-from app.services.whatsapp_service import WhatsAppService
+from app.utils.celery_imports import lc
 
-load_dotenv()
-
-custom_httpx_client = Client(headers={"x-bare-password": os.getenv("LETTA_AI_API_PASSWORD")})
-
-lc = Letta(
-    base_url=os.getenv("LETTA_AI_API_URL"),
-    httpx_client=custom_httpx_client,
-)
-
-wpp = WhatsAppService(session_name="principal", token=os.getenv("PRINCIPAL_WPP_SESSION_TOKEN"))
-
-def send_user_message_to_agent(agent_id, message, timeout=15):
+def send_user_message_to_agent(agent_id: str, message: str):
+    """
+    Envia uma mensagem ao agente e processa a resposta de forma assíncrona.
+    """
     try:
-        # Enviar mensagem ao agente
-        response = lc.agents.messages.create_async(
-            agent_id=agent_id,
-            messages=[
-                MessageCreate(
-                    role="user",
-                    content=message,
-                )
-            ],
-        )
-        
-        if not response.id:
-            logging.error("A resposta da API não contém um 'response.id'.")
-            return "Erro ao processar a mensagem: ID da resposta não encontrado."
-
-        start_time = time.time()
-        run_done = False
-
-        while not run_done:
-            run = lc.runs.retrieve_run(response.id)
-            if run.status in ["completed", "failed"]:
-                run_done = True
-            if time.time() - start_time > timeout:
-                logging.error(f"Timeout ao aguardar a execução do agente {agent_id}.")
-                return "Processando a sua solicitação. 😊"
-    
-        messages = lc.runs.list_run_messages(response.id)
-        assistant_message = next(
-            (msg.content for msg in messages if isinstance(msg, AssistantMessage)),
-            None
-        )
-        if assistant_message:
-            return assistant_message
-        else:
-            logging.error(f"A resposta do agente {agent_id} não contém 'assistant_message'. Estrutura: {messages}")
-            return "Erro: Não foi possível encontrar a mensagem do agente."
-
+        # Enfileirar a tarefa Celery
+        send_message_task.delay(agent_id, message)
+        return "Sua mensagem está sendo processada. Você será notificado assim que receber uma resposta."
     except Exception as e:
-        logging.error(f"Erro ao enviar mensagem ao agente {agent_id}: {e}")
+        logging.error(f"Erro ao enfileirar a tarefa: {e}")
         return "Desculpe, ocorreu um erro ao processar sua mensagem."
     
 def send_system_message_to_agent(agent_id, message, timeout=30):
@@ -108,7 +62,9 @@ def get_human_block_id(agent_id: str):
         logging.error(f"Erro ao buscar bloco humano para o agente {agent_id}: {e}")
         return None
     
-def get_phone_tag(tags):
+def get_phone_tag(agent_id: str):
+    agent = lc.agents.retrieve(agent_id)
+    tags = agent.tags
     for tag in tags:
         if re.search(r'\d+', tag):
             return tag

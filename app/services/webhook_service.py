@@ -69,7 +69,7 @@ class WebhookService:
     def perform_action_based_on_message(message: str, user: User):
         if user.id_main_agent is None or not user.whatsapp_integration or not user.apple_calendar_integration or not user.google_calendar_integration or not user.email_integration:
             agent_id = get_onboarding_agent_id(user.phone)
-            agent_response = send_user_message_to_agent(agent_id, message)
+            send_user_message_to_agent(agent_id, message)
         else:
-            agent_response = send_user_message_to_agent(user.id_main_agent, message)
-        wpp.send_message(user.phone, agent_response)
+            send_user_message_to_agent(user.id_main_agent, message)
+        #wpp.send_message(user.phone, agent_response)

@@ -68,6 +68,7 @@ def create_onboarding_agent(user_name: str, user_number: str):
 - As integrações que serão feitas são:
   1. Integrar o WhatsApp do usuário ao sistema.
     - Para integrar o WhatsApp, você deve chamar a função start_whatsapp_integration, isso irá iniciar um fluxo interno no sistema para integrar o whatsapp.
+    - Quando você chamar a função start_whatsapp_integration, não envie nenhuma mensagem ao usuário, o sistema irá fazer isso por você.
     - Você deve esperar o sistema retornar que a integração foi feita com sucesso ou que houve um erro.
   2. Integrar o e-mail do usuário ao sistema.
   3. Integrar o Google Calendar do usuário ao sistema.
