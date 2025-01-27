@@ -2,7 +2,7 @@ import re
 from fastapi import APIRouter, HTTPException, Query
 
 from app.services.user_service import UserRepository
-from app.utils.whatsapp_integration_flow import WhatsappIntegrationFlow
+from app.flows.whatsapp_integration_flow import WhatsappIntegrationFlow
 import logging
 
 router = APIRouter(prefix="/tools", tags=["Tools"])

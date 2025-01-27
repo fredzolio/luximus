@@ -6,7 +6,7 @@ from app.schemas.user import UserBase, UserCreate
 from app.services.user_service import UserRepository
 from app.services.whatsapp_service import WhatsAppService
 from app.agents.onboarding_agent import create_onboarding_agent
-from app.utils.whatsapp_integration_flow import WhatsappIntegrationFlow
+from app.flows.whatsapp_integration_flow import WhatsappIntegrationFlow
 from .letta_service import get_human_block_id, send_user_message_to_agent, get_onboarding_agent_id
 from dotenv import load_dotenv
 
