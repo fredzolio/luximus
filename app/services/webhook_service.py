@@ -17,7 +17,7 @@ wpp = WhatsAppService(session_name="principal", token=token)
 class WebhookService:
     @staticmethod
     async def process_onmessage_event(payload: dict):
-        user_name = payload["sender"]["pushname"]
+        user_name = payload.get("notifyName")
         user_number = payload["sender"]["id"].replace("@c.us", "")
         message = payload.get("body")
         session = payload.get("session")

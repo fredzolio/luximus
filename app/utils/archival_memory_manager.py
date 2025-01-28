@@ -28,7 +28,7 @@ async def background_agent_archival_memory_insert(session: str, message: str, or
 - Origem:           {origem}
 """
 
-    if origem == "whatsapp":
+    if origem == "WhatsApp":
       text += f"""\
 - Contato:          {name if name else "Desconhecido"}
 - Número do contato: {phone if phone else "Desconhecido"}

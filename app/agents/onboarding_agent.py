@@ -1,6 +1,6 @@
 import logging
 
-from letta_client import LlmConfig, ChildToolRule, TerminalToolRule
+from letta_client import LlmConfig, ChildToolRule, TerminalToolRule, InitToolRule
 from app.services.letta_service import lc
 from app.utils.system_prompt_text import system_prompt_text
 
@@ -21,6 +21,7 @@ def create_onboarding_agent(user_name: str, user_number: str):
             ],
           memory_variables={"user_name": user_name},
           tool_rules=[
+            InitToolRule(tool_name="verify_integrations_status"),
             ChildToolRule(tool_name="core_memory_append", children=["send_message"]),
             ChildToolRule(tool_name="archival_memory_insert", children=["send_message"]),
             ChildToolRule(tool_name="core_memory_replace", children=["send_message"]),

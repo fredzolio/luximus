@@ -5,7 +5,7 @@ import os
 
 from letta_client import MessageCreate, AssistantMessage, ToolCallMessage
 from app.services.user_service import UserRepository
-from app.utils.celery_imports import lc, get_phone_tag
+from app.utils.celery_imports import lc, get_phone_tag, get_agent_tags
 from app.services.whatsapp_service import WhatsAppService
 import redis
 from asgiref.sync import async_to_sync
@@ -64,7 +64,6 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
     """
     Tarefa Celery para verificar o status da execução e enviar a resposta ao usuário quando concluída.
     """
-    user_repo = UserRepository()
     
     try:
         start_time = time.time()
@@ -104,6 +103,10 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
             ])
             if flagged_tools:
                 send_message = False
+                
+        agent_tags = get_agent_tags(agent_id)
+        if "background" in agent_tags:
+            send_message = False
         
         if assistant_message:
             if send_message:

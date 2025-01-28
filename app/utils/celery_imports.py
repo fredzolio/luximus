@@ -38,3 +38,14 @@ def get_phone_tag(agent_id: str) -> str:
     except Exception as e:
         logging.error(f"Erro ao recuperar agente {agent_id}: {e}")
     return ""
+
+def get_agent_tags(agent_id: str) -> list:
+    """
+    Recupera as tags de um agente.
+    """
+    try:
+        agent = lc.agents.retrieve(agent_id)
+        return agent.tags
+    except Exception as e:
+        logging.error(f"Erro ao recuperar agente {agent_id}: {e}")
+    return []
