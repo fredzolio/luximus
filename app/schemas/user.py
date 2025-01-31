@@ -16,6 +16,8 @@ class UserBase(BaseModel):
     google_calendar_integration: Optional[bool] = Field(False, description="Indica integração com o Google Calendar")
     apple_calendar_integration: Optional[bool] = Field(False, description="Indica integração com o Apple Calendar")
     email_integration: Optional[bool] = Field(False, description="Indica integração com o Email")
+    google_token: Optional[str] = Field(None, max_length=255, description="Token de acesso do Google")
+    google_refresh_token: Optional[str] = Field(None, max_length=255, description="Token de atualização do Google")
 
 
 class UserCreate(UserBase):

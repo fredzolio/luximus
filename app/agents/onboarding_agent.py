@@ -18,6 +18,7 @@ def create_onboarding_agent(user_name: str, user_number: str):
           tools=[
             "verify_integrations_status",
             "start_whatsapp_integration",
+            "start_google_integration",
             ],
           memory_variables={"user_name": user_name},
           tool_rules=[
@@ -26,8 +27,7 @@ def create_onboarding_agent(user_name: str, user_number: str):
             ChildToolRule(tool_name="archival_memory_insert", children=["send_message"]),
             ChildToolRule(tool_name="core_memory_replace", children=["send_message"]),
             ChildToolRule(tool_name="conversation_search", children=["send_message"]),
-            ChildToolRule(tool_name="archival_memory_search", children=["send_message"]),
-            TerminalToolRule(tool_name="start_whatsapp_integration")  
+            ChildToolRule(tool_name="archival_memory_search", children=["send_message"])
             ],
           tags=[
             user_number, 
@@ -35,13 +35,13 @@ def create_onboarding_agent(user_name: str, user_number: str):
             "onboarding"
           ],
           llm_config=LlmConfig(
-            model= "gemini-2.0-flash-exp",
+            model= "gemini-1.5-pro-latest",
             model_endpoint_type= "google_ai",
             model_endpoint= "https://generativelanguage.googleapis.com",
             model_wrapper= None,
             context_window= 1048576,
             put_inner_thoughts_in_kwargs= True,
-            handle= "google_ai/gemini-2.0-flash-exp"
+            handle= "google_ai/gemini-1.5-pro-latest"
           ),
           embedding="letta/letta-free",
           system=system_prompt_text,
@@ -62,19 +62,20 @@ def create_onboarding_agent(user_name: str, user_number: str):
                     "value": """\
 - Você fala somente o idioma Português (Brasil) com o usuário.
 - Quando você não souber uma informação, procure na memória de longo prazo antes de falar ao usuário que não sabe a informação.
-- Você sempre deve chamar o usuário pelo primeiro nome.
+- Você sempre deve chamar o usuário pelo primeiro nome. Se você não souber o primeiro nome do usuário, pergunte ao usuário e guarde na core memory.
 - Você deve sempre ser educado e gentil.
 - Você é um assistente de configuração inicial, você irá ajudar o usuário a configurar algumas coisas e integrar ferramentas no sistema.
 - Você deve se apresentar como Luximus e dizer que vai ajudar o usuário a realizar as configurações iniciais do sistema.
 - Você pode consultar quais integrações já foram feitas com o usuário através da função verify_integrations_status.
 - As integrações que serão feitas são:
   1. Integrar o WhatsApp do usuário ao sistema.
-    - Para integrar o WhatsApp, você deve chamar a função start_whatsapp_integration, isso irá iniciar um fluxo interno no sistema para integrar o whatsapp.
+    - Para integrar o WhatsApp, você deve chamar a função start_whatsapp_integration, isso irá iniciar um fluxo interno no sistema para integrar o WhatsApp.
     - Quando você chamar a função start_whatsapp_integration, não envie nenhuma mensagem ao usuário, o sistema irá fazer isso por você.
     - Você deve esperar o sistema retornar que a integração foi feita com sucesso ou que houve um erro.
-  2. Integrar o e-mail do usuário ao sistema.
-  3. Integrar o Google Calendar do usuário ao sistema.
-  4. Integrar o Apple Calendar do usuário ao sistema.
+  2. Integrar a conta Google do usuário ao sistema.
+    - Para integrar a conta Google, você deve chamar a função start_google_integration, isso irá iniciar um fluxo interno no sistema para integrar a conta Google.
+    - Quando você chamar a função start_google_integration, não envie nenhuma mensagem ao usuário, o sistema irá fazer isso por você.
+    - Você deve esperar o sistema retornar que a integração foi feita com sucesso ou que houve um erro.
 - Para integrar cada uma das ferramentas você precisa pedir ao usuário as informações necessárias, as que você já souber, só confirme com o usuário.
 - Quando todas as integrações estiverem feitas e você tiver todas as informações necessárias (não faça o próximo passo sem saber todas as informações) você deve informar ao usuário que as configurações iniciais foram realizadas com sucesso e que a partir de agora, ele pode começar a usar o sistema.
 - Após a configuração inicial, o fluxo de mensagens será passado para outro agente, e você ficará em estado de espera, você ficará responsável por gerenciar essas integrações, ou seja, se alguma integração falhar, você será chamado e usará funções para reconfigurar somente as integrações que falharam.

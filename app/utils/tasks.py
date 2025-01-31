@@ -2,13 +2,10 @@ import time
 import logging
 from celery import shared_task
 import os
-
 from letta_client import MessageCreate, AssistantMessage, ToolCallMessage
-from app.services.user_service import UserRepository
 from app.utils.celery_imports import lc, get_phone_tag, get_agent_tags
 from app.services.whatsapp_service import WhatsAppService
 import redis
-from asgiref.sync import async_to_sync
 
 # Inicializar WhatsAppService
 wpp = WhatsAppService(session_name="principal", token=os.getenv("PRINCIPAL_WPP_SESSION_TOKEN"))
@@ -99,7 +96,8 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
         
         if tool_called:
             flagged_tools = any([
-                "start_whatsapp_integration" in tool_called
+                "start_whatsapp_integration" in tool_called,
+                "start_google_integration" in tool_called,
             ])
             if flagged_tools:
                 send_message = False

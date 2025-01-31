@@ -21,6 +21,8 @@ class User(Base):
     google_calendar_integration = Column(Boolean, default=False, nullable=False)
     apple_calendar_integration = Column(Boolean, default=False, nullable=False)
     email_integration = Column(Boolean, default=False, nullable=False)
+    google_token = Column(String(255), nullable=True)
+    google_refresh_token = Column(String(255), nullable=True)
 
     def __repr__(self):
         return f"<User(id={self.id}, name={self.name}, phone={self.phone})>"

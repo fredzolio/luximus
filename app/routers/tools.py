@@ -1,6 +1,7 @@
 import re
 from fastapi import APIRouter, HTTPException, Query
 
+from app.flows.google_integration_flow import GoogleIntegrationFlow
 from app.services.user_service import UserRepository
 from app.flows.whatsapp_integration_flow import WhatsappIntegrationFlow
 import logging
@@ -76,3 +77,37 @@ async def start_whatsapp_integration(phone: str = Query(..., description="Númer
     
     logger.info(f"Fluxo de integração com WhatsApp iniciado para usuário: {user.id}")
     return {"status": "success", "message": "Fluxo de integração com WhatsApp iniciado."}
+
+@router.post("/start-google-integration")
+async def start_google_integration(phone: str = Query(..., description="Número de telefone no formato '551199999999'")):
+
+    phone_pattern = re.compile(r'^55\d{10,11}$')
+    if not phone:
+        logger.error("O número de telefone é obrigatório.")
+        raise HTTPException(status_code=400, detail="O número de telefone é obrigatório.")
+    if not phone_pattern.match(phone):
+        logger.error(f"Formato de telefone inválido: {phone}")
+        raise HTTPException(
+            status_code=400,
+            detail="O número de telefone deve estar no formato DDIDDDNUMERO.\nExemplo: 551199999999"
+        )
+    
+    user_repo = UserRepository()
+
+    user = await user_repo.get_user_by_phone(phone)
+    if not user:
+        logger.error(f"Usuário não encontrado para o telefone: {phone}")
+        raise HTTPException(
+            status_code=200,
+            detail="Usuário não encontrado para o número de telefone fornecido."
+        )
+        
+    await user_repo.set_user_integration_running(user.phone, "google_calendar")
+
+    flow = GoogleIntegrationFlow(user.id)
+    
+    await flow.load_state()
+    
+    await flow.restart()
+
+    return {"status": "success", "message": "Fluxo de integração com Google iniciado."}

@@ -20,7 +20,7 @@ def create_background_agent(user_name: str, user_number: str, human_block_id: st
             "archival_memory_insert",
             "archival_memory_search",
             "conversation_search",
-            "send_message_to_specific_agent",
+            "send_message_to_agent_async",
             ],
           memory_variables={"user_name": user_name},
           # tool_rules=[
@@ -35,13 +35,13 @@ def create_background_agent(user_name: str, user_number: str, human_block_id: st
             "background"
           ],
           llm_config=LlmConfig(
-            model= "gemini-2.0-flash-exp",
+            model= "gemini-1.5-pro-latest",
             model_endpoint_type= "google_ai",
             model_endpoint= "https://generativelanguage.googleapis.com",
             model_wrapper= None,
             context_window= 1048576,
             put_inner_thoughts_in_kwargs= True,
-            handle= "google_ai/gemini-2.0-flash-exp"
+            handle= "google_ai/gemini-1.5-pro-latest"
           ),
           embedding="letta/letta-free",
           system=system_prompt_text,

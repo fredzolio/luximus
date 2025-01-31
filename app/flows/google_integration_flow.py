@@ -1,17 +1,31 @@
 import os
 import asyncio
+import json
+from typing import Optional
+from urllib.parse import urlencode
 from app.models.user import User
 from app.services.flow_repository import FlowRepository
 from app.schemas.user import UserBase
 from app.services.letta_service import get_onboarding_agent_id, send_user_message_to_agent
 from app.services.user_service import UserRepository
-from app.services.whatsapp_service import WhatsAppService
+from google_auth_oauthlib.flow import Flow
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
 
-class WhatsappIntegrationFlow:
-    FLOW_NAME = "whatsapp_integration"
+from app.services.whatsapp_service import WhatsAppService
+from app.utils.state_utils_jwt import generate_state
+
+class GoogleIntegrationFlow:
+    FLOW_NAME = "google_integration"
 
     def __init__(self, user_id: str, data: dict = None):
-        self.steps = [self.step_one, self.step_two, self.step_three, self.step_four]
+        self.steps = [
+            self.step_one,
+            self.step_two,
+            self.step_three,
+            self.step_four
+        ]
         self.data = data or {}
         self.current_step = 0
         self.is_running = False
@@ -19,7 +33,7 @@ class WhatsappIntegrationFlow:
         self.user_id = user_id
         self.flow_repo = FlowRepository()
         self.wpp = WhatsAppService(session_name="principal", token=os.getenv("PRINCIPAL_WPP_SESSION_TOKEN"))
-        
+
     async def get_user(self) -> User:
         user_repo = UserRepository()
         user = await user_repo.get_user_by_id(self.user_id)
@@ -104,8 +118,8 @@ class WhatsappIntegrationFlow:
         await self.save_state()
         user = await self.get_user()
         onboarding_agent_id = get_onboarding_agent_id(user.phone)
-        self.wpp.send_message(user.phone, "```Você cancelou a integração com o Whatsapp.```")
-        send_user_message_to_agent(onboarding_agent_id, "SYSTEM MESSAGE: O usuário cancelou a integração com o Whatsapp. Pergunte a ele se deseja tentar novamente.")
+        self.wpp.send_message(user.phone, "```Você cancelou a integração com o Google Calendar.```")
+        send_user_message_to_agent(onboarding_agent_id, "SYSTEM MESSAGE: O usuário cancelou a integração com o Google Calendar. Pergunte a ele se deseja tentar novamente.")
         user_repo = UserRepository()
         await user_repo.set_user_integration_running(user.phone, None)
         return {"message": "Flow stopped"}
@@ -139,104 +153,116 @@ class WhatsappIntegrationFlow:
         current_step_func = self.steps[self.current_step]
         return await current_step_func()
 
-####################################################################################################
+    ####################################################################################################
 
     async def step_one(self):
         user = await self.get_user()
         user_first_name = user.name.split()[0]
         
+        state = generate_state(user_id=user.id)
+        authorization_url = self.get_authorization_url(state)
+
         self.wpp.send_message(
             user.phone, 
-            f"{user_first_name}, para integrarmos o seu Whatsapp com o nosso sistema, será preciso logar em uma sessão do Whatsapp Web, siga atentamente as instruções abaixo:\n\n1. Abra essa conversa em *outro* dispositivo.\n2. Abra o Whatsapp no seu *celular*.\n3. Vá até as configurações do Whatsapp e clique em *Dispositivos Conectados*.\n4. Aponte a câmera do seu celular para o *QR Code* que será exibido nessa conversa.\n5. Aguarde a confirmação da integração."
+            f"{user_first_name}, para integrarmos o Google Calendar, preciso que você autorize o acesso. Clique no link abaixo para continuar:\n\n{authorization_url}\n\nApós autorizar, volte aqui e aguarde a confirmação."
         )
-        self.wpp.send_message(
-            user.phone, 
-            f"```Para prosseguir, responda 'ok' ou 'continuar', para cancelar, responda 'cancelar'.```"
-        )
-        
+
         await asyncio.sleep(1)
         auto_continue = False
-        message = f"Step 1 completed: Explanation message sent to {user.name}"
+        message = "Step 1 completed: Authorization link sent to the user."
         return {"message": message, "auto_continue": auto_continue}
 
     async def step_two(self):
-        user = await self.get_user()
 
-        user_repo = UserRepository()
-        user_session = f"info_agent_{user.phone}"
-        user_wpp = WhatsAppService(session_name=user_session)
-        whatsapp_token = user_wpp.generate_token()
-        user_update = UserBase(id_session_wpp=user_session, token_wpp=whatsapp_token)
-        await user_repo.update_user_by_id(user.id, user_update)
-        
-        self.wpp.send_message(
-            user.phone, 
-            f"Na próxima etapa, *você deve ser rápido*, uma vez que o código QR gerado, *expira* em segundos, por favor, garanta que já consegue escanear o código com seu celular, antes de prosseguir."
+        await self.load_state()
+        tokens = self.data.get("tokens")
+        if not tokens:
+            message = "Aguardando o usuário autorizar o acesso ao Google Calendar."
+            return {"message": message, "auto_continue": False}
+
+        # Validar os tokens
+        credentials = Credentials(
+            tokens["token"],
+            refresh_token=tokens.get("refresh_token"),
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=os.getenv("GOOGLE_CLIENT_ID"),
+            client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
         )
-        self.wpp.send_message(
-            user.phone, 
-            f"```Para prosseguir, responda 'ok' ou 'continuar', para cancelar, responda 'cancelar'.```"
-        )
-        
-        await asyncio.sleep(1)  
-        auto_continue = False
-        message = f"Step 2 completed: Session ID has been defined and saved to user {user.name}. Token has been generated and saved to user {user.name}"
-        return {"message": message, "auto_continue": auto_continue}
+
+        if not credentials.valid:
+            if credentials.expired and credentials.refresh_token:
+                credentials.refresh(Request())
+                # Atualizar tokens no estado
+                self.data["tokens"]["token"] = credentials.token
+                await self.save_state()
+            else:
+                raise ValueError("Credenciais inválidas e não podem ser atualizadas.")
+
+        self.data["credentials"] = credentials.to_json()
+        await self.save_state()
+
+        message = "Step 2 completed: Authorization successful."
+        return {"message": message, "auto_continue": False}
 
     async def step_three(self):
         user = await self.get_user()
-        
-        self.wpp.send_message(user.phone, "Aguarde um momento, estou gerando o QR Code para você.")
-        user_wpp = WhatsAppService(session_name=user.id_session_wpp, token=user.token_wpp)
-        response = user_wpp.start_session()
-        await asyncio.sleep(3)
-        attempt = 0
-        while response.get("status") != "QRCODE" and attempt < 10:
-            await asyncio.sleep(2)
-            response = user_wpp.start_session()
-            attempt += 1
-        if response.get("status") == "QRCODE":
-            qr_code = response.get("qrcode")
-        else:
-            print("Error getting QR Code")
-        
+        # Passo 3: Confirmar a integração e armazenar credenciais
+        credentials_json = self.data.get("credentials")
+        if not credentials_json:
+            message = "Credenciais não encontradas. Recomeçando o fluxo."
+            self.wpp.send_message(user.phone, "```Credenciais não encontradas. Recomeçando o fluxo.```")
+            self.restart()
+            return {"message": message, "auto_continue": False}
+
+        credentials = Credentials.from_authorized_user_info(json.loads(credentials_json))
+        user_repo = UserRepository()
+        onboarding_agent_id = get_onboarding_agent_id(user.phone)
+        # Aqui, você pode construir o serviço Calendar para verificar se está funcionando
         try:
-            self.wpp.send_image(phone=user.phone, base64_str=qr_code, caption="Escaneie o QR Code para prosseguir com a integração.", filename="qr_code.png")
+            build('calendar', 'v3', credentials=credentials)
+            self.wpp.send_message(user.phone, "```Sua integração foi realizada com sucesso!``` ✅")
+            user_update = UserBase(google_calendar_integration=True, email_integration=True, apple_calendar_integration=True)
+            await user_repo.update_user_by_id(user.id, user_update)
+            send_user_message_to_agent(onboarding_agent_id, "SYSTEM MESSAGE: Integração do Google realizada com sucesso!")
         except Exception as e:
-            print(f"Error sending QR Code image: {str(e)}")
-            raise
-        
-        await asyncio.sleep(1)
-        auto_continue = True
-        message = f"Step 3 completed: QR-Code was sent for user {user.name}"
-        return {"message": message, "auto_continue": auto_continue}
+            self.wpp.send_message(user.phone, "```Algo deu errado na sua integração com o Google.``` ❌")
+            send_user_message_to_agent(onboarding_agent_id, "SYSTEM MESSAGE: Integração do Google falhou!. Você deve perguntar ao usuário se ele quer tentar novamente.")
+            self.stop()
+
+        message = f"Step 3 completed: Google Calendar confirmado e integrado."
+        return {"message": message, "auto_continue": True}
 
     async def step_four(self):
         user = await self.get_user()
-        user_wpp = WhatsAppService(session_name=user.id_session_wpp, token=user.token_wpp)
         user_repo = UserRepository()
-        attempt = 0
-        status = None
-        onboarding_agent_id = get_onboarding_agent_id(user.phone)
-        while attempt < 15 and status != "Connected":
-            await asyncio.sleep(2)
-            status = user_wpp.status_session().get("message")
-            attempt += 1
-        
-        if status == "Connected":
-            self.wpp.send_message(user.phone, "```Sua integração foi realizada com sucesso!``` ✅")
-            user_update = UserBase(whatsapp_integration=True)
-            await user_repo.update_user_by_id(user.id, user_update)
-            send_user_message_to_agent(onboarding_agent_id, "SYSTEM MESSAGE: Integração do Whatsapp realizada com sucesso!")
-            message = f"Step 4 completed: Integration completed for user {user.name}"
-        else:
-            self.wpp.send_message(user.phone, "```Algo deu errado na sua integração, o QR-Code pode ter expirado.``` ❌")
-            send_user_message_to_agent(onboarding_agent_id, "SYSTEM MESSAGE: Integração do Whatsapp falhou!. Você deve perguntar ao usuário se ele quer tentar novamente. Informe a ele que o motivo pode ter sido a expiração do QR-Code, enfatize o fato de que ele deve ser rápido.")
-            message = f"Step 4 completed: Something went wrong and the integration is not completed for user {user.name}"
-        
         user_update = UserBase(integration_is_running=None)
         await user_repo.update_user_by_id(user.id, user_update)
-        
-        await asyncio.sleep(1)
-        auto_continue = True
-        return {"message": message, "auto_continue": auto_continue}
+        self.is_running = False
+        self.flow_completed = True
+        await self.save_state()
+        return {"message": "Google Calendar integration completed successfully!", "auto_continue": True}
+
+    ####################################################################################################
+
+    def get_authorization_url(self, state: str) -> str:
+        # Configurar o fluxo de OAuth 2.0
+        scopes = [
+            'https://www.googleapis.com/auth/calendar',
+            'https://www.googleapis.com/auth/gmail.modify',
+            'https://www.googleapis.com/auth/gmail.compose',
+            'https://www.googleapis.com/auth/gmail.readonly'
+        ]
+        flow = Flow.from_client_secrets_file(
+            'credentials.json',
+            scopes=scopes,
+            redirect_uri=os.getenv("OAUTH_REDIRECT_URI")
+        )
+
+        authorization_url, _ = flow.authorization_url(
+            access_type='offline',
+            include_granted_scopes='true',
+            prompt='consent',
+            state=state
+        )
+
+        return authorization_url

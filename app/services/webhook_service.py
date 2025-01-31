@@ -1,6 +1,7 @@
 import asyncio
 import os
 from app.flows.create_agents_flow import CreateAgentsFlow
+from app.flows.google_integration_flow import GoogleIntegrationFlow
 from app.models.user import User
 from app.schemas.user import UserCreate
 from app.services.user_service import UserRepository
@@ -37,6 +38,10 @@ class WebhookService:
                     WebhookService.perform_action_based_on_message(message, user)
                 elif integration_status == "whatsapp":
                     flow = WhatsappIntegrationFlow(user.id)
+                    await flow.load_state()
+                    await flow.handle_message(message)
+                elif integration_status == "google_calendar":
+                    flow = GoogleIntegrationFlow(user.id)
                     await flow.load_state()
                     await flow.handle_message(message)
                 else:
