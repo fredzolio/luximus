@@ -7,6 +7,7 @@ from app.models.user import User
 from app.services.flow_repository import FlowRepository
 from app.schemas.user import UserBase
 from app.services.letta_service import get_onboarding_agent_id, send_user_message_to_agent
+from app.services.short_links import create_short_url
 from app.services.user_service import UserRepository
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
@@ -81,6 +82,7 @@ class GoogleIntegrationFlow:
                 self.is_running = False
                 self.flow_completed = True
                 await self.save_state()
+                await self.flow_repo.delete_flow_state(self.FLOW_NAME, self.user_id)
                 return {"message": "Flow completed successfully"}
 
             current_step_func = self.steps[self.current_step]
@@ -159,12 +161,18 @@ class GoogleIntegrationFlow:
         user = await self.get_user()
         user_first_name = user.name.split()[0]
         
+        self.wpp.send_message(
+            user.phone, 
+            f"*{user_first_name}*, estamos iniciando a integração com sua conta do Google, enquanto geramos o link de autorização, por favor aguarde um momento."
+        )
+        
         state = generate_state(user_id=user.id)
         authorization_url = self.get_authorization_url(state)
+        shorted_link = create_short_url(authorization_url) 
 
         self.wpp.send_message(
             user.phone, 
-            f"{user_first_name}, para integrarmos o Google Calendar, preciso que você autorize o acesso. Clique no link abaixo para continuar:\n\n{authorization_url}\n\nApós autorizar, volte aqui e aguarde a confirmação."
+            f"*{user_first_name}*, para integrarmos o Google, preciso que você autorize o acesso. Clique no link abaixo para continuar:\n\n{shorted_link}\n\nApós autorizar, volte aqui e aguarde a confirmação."
         )
 
         await asyncio.sleep(1)
@@ -173,12 +181,11 @@ class GoogleIntegrationFlow:
         return {"message": message, "auto_continue": auto_continue}
 
     async def step_two(self):
-
         await self.load_state()
         tokens = self.data.get("tokens")
         if not tokens:
             message = "Aguardando o usuário autorizar o acesso ao Google Calendar."
-            return {"message": message, "auto_continue": False}
+            return {"message": message, "auto_continue": True}
 
         # Validar os tokens
         credentials = Credentials(
@@ -202,7 +209,7 @@ class GoogleIntegrationFlow:
         await self.save_state()
 
         message = "Step 2 completed: Authorization successful."
-        return {"message": message, "auto_continue": False}
+        return {"message": message, "auto_continue": True}
 
     async def step_three(self):
         user = await self.get_user()

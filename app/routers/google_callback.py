@@ -58,8 +58,7 @@ async def oauth2callback(request: Request):
     }
     await calendar_flow.save_state()
 
-    # Avançar o fluxo
-    await calendar_flow.continue_flow()
+    await calendar_flow.advance_flow()
 
     return RedirectResponse('/integration-success')
 

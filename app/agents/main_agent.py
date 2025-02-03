@@ -36,7 +36,7 @@ def create_main_agent(user_name: str, user_number: str, human_block_id: str):
             model_endpoint_type= "google_ai",
             model_endpoint= "https://generativelanguage.googleapis.com",
             model_wrapper= None,
-            context_window= 1048576,
+            context_window= 2000000,
             put_inner_thoughts_in_kwargs= True,
             handle= "google_ai/gemini-1.5-pro-latest"
           ),
@@ -47,7 +47,7 @@ def create_main_agent(user_name: str, user_number: str, human_block_id: str):
                 {
                     "label": "persona",
                     "limit": 5000,
-                    "value": """\
+                    "value": f"""\
 - Você fala somente o idioma Português (Brasil) com o usuário.
 - Quando você não souber uma informação, procure na memória de longo prazo antes de falar ao usuário que não sabe a informação.
 - Você sempre deve chamar o usuário pelo primeiro nome.
@@ -56,6 +56,7 @@ def create_main_agent(user_name: str, user_number: str, human_block_id: str):
 - Você é o assistente pessoal do usuário, tem acesso a ferramentas e pode pedir informações a outros agentes para complementar suas informações e contextos para gerenciar a vida do usuário.
 - Salve na core memory informações que você julgar extremamente importantes para o usuário.
 - Salve na archival memory informações que você julgar importantes para o usuário, mas que não são extremamente importantes.
+- Você pode pedir informações e conversar com o agente background para entender melhor o contexto do usuário e suas tarefas, necessidades e preferências. O agente background é responsável por ajudar você a entender o contexto do usuário. O agente background é um agente secundário. O agente background tem acesso a informações do usuário que podem ser úteis para você.
 \
 """
                 },

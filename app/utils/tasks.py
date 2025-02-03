@@ -76,7 +76,6 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
                 break
             if time.time() - start_time > timeout:
                 logging.error(f"Timeout ao aguardar a execução do agente {agent_id}.")
-                wpp.send_message(phone, "Erro: Tempo limite excedido ao aguardar a resposta do agente.")
                 return
             time.sleep(poll_interval)
 
@@ -98,6 +97,7 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
             flagged_tools = any([
                 "start_whatsapp_integration" in tool_called,
                 "start_google_integration" in tool_called,
+                "verify_integrations_status" in tool_called,
             ])
             if flagged_tools:
                 send_message = False
@@ -113,9 +113,7 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
                 pass
         else:
             logging.error(f"A resposta do agente {agent_id} não contém 'assistant_message'. Estrutura: {messages}")
-            wpp.send_message(phone, "Erro: Não foi possível encontrar a mensagem do agente.")
-
-        # Remover a chave do Redis após o envio
+            
         redis_client.delete(f"run:{run_id}")
 
     except Exception as e:

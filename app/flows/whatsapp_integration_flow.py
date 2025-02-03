@@ -67,6 +67,7 @@ class WhatsappIntegrationFlow:
                 self.is_running = False
                 self.flow_completed = True
                 await self.save_state()
+                await self.flow_repo.delete_flow_state(self.FLOW_NAME, self.user_id)
                 return {"message": "Flow completed successfully"}
 
             current_step_func = self.steps[self.current_step]

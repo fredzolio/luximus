@@ -6,9 +6,10 @@ from app.agents.onboarding_agent import create_onboarding_agent
 from app.models.user import User
 from app.services.flow_repository import FlowRepository
 from app.schemas.user import UserBase
-from app.services.letta_service import get_human_block_id, get_onboarding_agent_id, send_user_message_to_agent
+from app.services.letta_service import get_human_block_id
 from app.services.user_service import UserRepository
 from app.services.whatsapp_service import WhatsAppService
+from app.utils.celery_imports import lc
 
 class CreateAgentsFlow:
     FLOW_NAME = "create_agents"
@@ -22,6 +23,7 @@ class CreateAgentsFlow:
         self.user_id = user_id
         self.flow_repo = FlowRepository()
         self.user_repo = UserRepository()
+        self.background_agent_id = None
         
     async def get_user(self) -> User:
         user_repo = UserRepository()
@@ -70,6 +72,7 @@ class CreateAgentsFlow:
                 self.is_running = False
                 self.flow_completed = True
                 await self.save_state()
+                await self.flow_repo.delete_flow_state(self.FLOW_NAME, self.user_id)
                 return {"message": "Flow completed successfully"}
 
             current_step_func = self.steps[self.current_step]
@@ -145,18 +148,32 @@ class CreateAgentsFlow:
         onboarding_agent = create_onboarding_agent(user_name=user.name, user_number=user.phone)
         human_block_id = get_human_block_id(onboarding_agent.id)
         main_agent = create_main_agent(user_name=user.name, user_number=user.phone, human_block_id=human_block_id)
-        create_background_agent(user_name=user.name, user_number=user.phone, human_block_id=human_block_id, main_agent_id=main_agent.id)
+        background_agent = create_background_agent(user_name=user.name, user_number=user.phone, human_block_id=human_block_id, main_agent_id=main_agent.id)
+        self.background_agent_id = background_agent.id
         user_main_agent_id_update = UserBase(id_main_agent=main_agent.id)
         await self.user_repo.update_user_by_id(user.id, user_main_agent_id_update)
-        
         await asyncio.sleep(1)
         auto_continue = True
         message = f"Step 1 completed"
         return {"message": message, "auto_continue": auto_continue}
 
     async def step_two(self):
-        # user = await self.get_user()
+        user = await self.get_user()
         
+        main_agent_id = user.id_main_agent
+        
+        old_content = lc.agents.core_memory.retrieve_block(
+            agent_id=main_agent_id,
+            block_label="persona",
+        )
+        
+        new_content = old_content + f"""\n- O agente background tem ID: {self.background_agent_id}"""
+        
+        lc.agents.core_memory.modify_block(
+            agent_id=main_agent_id,
+            block_label="persona",
+            value=new_content,
+        )
         
         await asyncio.sleep(1)  
         auto_continue = True

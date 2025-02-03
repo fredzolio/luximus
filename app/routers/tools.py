@@ -34,8 +34,20 @@ async def verify_integrations_status(phone: str = Query(..., description="Númer
         "email": user.email_integration
     }
     
+    status = "pending"
+    
+    is_user_fully_integrated = all([
+        user.whatsapp_integration,
+        user.apple_calendar_integration,
+        user.google_calendar_integration,
+        user.email_integration
+    ])
+    
+    if is_user_fully_integrated:
+        status = "completed"
+    
     return {
-        "status": "success",
+        "status": f"{status}",
         "integrations": integrations
     }
 

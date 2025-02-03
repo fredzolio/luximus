@@ -13,7 +13,7 @@ async def whatsapp_session_status_manager(session: str, status: str):
   try:
     user = await get_user_by_session(session)
     user_repo = UserRepository()
-    if status == "desconnectedMobile":
+    if status == "desconnectedMobile" and user.whatsapp_integration == True:
       await user_repo.update_user_by_id(user.id, UserBase(whatsapp_integration=False))
       onboarding_agent_id = get_onboarding_agent_id(user.phone)
       await asyncio.sleep(2)
