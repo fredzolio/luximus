@@ -1,5 +1,5 @@
 import re
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.flows.google_integration_flow import GoogleIntegrationFlow
 from app.services.user_service import UserRepository
@@ -8,6 +8,22 @@ import logging
 
 router = APIRouter(prefix="/tools", tags=["Tools"])
 logger = logging.getLogger("uvicorn.error")
+
+@router.post("/teste")
+async def teste(request: Request):
+    async def read_request(request: Request):
+        body = await request.body()
+        headers = dict(request.headers)
+        query_params = dict(request.query_params)
+        return {
+            "method": request.method,
+            "url": str(request.url),
+            "headers": headers,
+            "query_params": query_params,
+            "body": body.decode("utf-8")
+        }
+
+    return await read_request(request)
 
 @router.get("/verify-integrations-status")
 async def verify_integrations_status(phone: str = Query(..., description="Número de telefone no formato '551199999999'")):

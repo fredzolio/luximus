@@ -187,3 +187,26 @@ class UserRepository:
             except IntegrityError as e:
                 await db.rollback()
                 raise ValueError(f"Erro ao atualizar status de integração: {e.orig}")
+            
+    async def update_google_tokens(self, user_id: str, google_token: str, google_refresh_token: str):
+        """
+        Atualiza os tokens do Google de um usuário com base no ID.
+        """
+        async with async_session() as db:
+            query = select(User).where(User.id == user_id)
+            result = await db.execute(query)
+            db_user = result.scalars().first()
+
+            if not db_user:
+                raise ValueError(f"Usuário com ID {user_id} não encontrado.")
+
+            db_user.google_token = google_token
+            db_user.google_refresh_token = google_refresh_token
+
+            try:
+                await db.commit()
+                await db.refresh(db_user)
+                return db_user
+            except IntegrityError as e:
+                await db.rollback()
+                raise ValueError(f"Erro ao atualizar tokens: {e.orig}")

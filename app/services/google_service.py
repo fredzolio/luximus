@@ -1,61 +1,114 @@
-# app/services/google_service.py
-
 import os
 import json
+import asyncio
+import base64
+import datetime
 from typing import List, Optional
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
-import base64
+
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-import datetime
+
+from app.services.user_service import UserRepository
+
+
+def auto_refresh(func):
+    """
+    Decorator que garante que as credenciais sejam atualizadas
+    antes de executar o método.
+    """
+    def wrapper(self, *args, **kwargs):
+        # Se as credenciais estiverem expiradas e houver refresh_token, atualiza-as.
+        if self.credentials and self.credentials.expired and self.credentials.refresh_token:
+            try:
+                # Utilizamos asyncio.run para chamar o método assíncrono.
+                asyncio.run(self.refresh_credentials())
+            except Exception as e:
+                print(f"Erro ao atualizar credenciais: {e}")
+        return func(self, *args, **kwargs)
+    return wrapper
+
 
 class GoogleService:
     """
     Serviço para interagir com as APIs do Gmail e Google Calendar.
     """
 
-    def __init__(self, credentials_json: str):
+    def __init__(self, user):
         """
-        Inicializa o serviço com as credenciais do usuário.
-        
-        :param credentials_json: JSON string contendo as credenciais OAuth 2.0 do usuário.
+        Inicializa o serviço com os tokens do usuário.
+
+        :param user: Objeto do usuário com os atributos:
+                    - id (str): Identificador do usuário.
+                    - google_token (str): Token de acesso.
+                    - google_refresh_token (str): Token de refresh.
         """
-        
-        # Descriptografar as credenciais
-        self.credentials = Credentials.from_authorized_user_info(json.loads(credentials_json))
-        
-        # Construir os serviços do Gmail e Calendar
+        self.user = user
+        credentials_info = {
+            "token": user.google_token,
+            "refresh_token": user.google_refresh_token,
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+            "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+            "scopes": [
+                'https://www.googleapis.com/auth/calendar',
+                'https://www.googleapis.com/auth/gmail.modify',
+                'https://www.googleapis.com/auth/gmail.compose',
+                'https://www.googleapis.com/auth/gmail.readonly'
+            ]
+        }
+
+        # Cria as credenciais a partir dos dados do usuário.
+        self.credentials = Credentials(**credentials_info)
+
+        # Constrói os serviços do Gmail e Calendar.
         self.gmail_service = build('gmail', 'v1', credentials=self.credentials)
         self.calendar_service = build('calendar', 'v3', credentials=self.credentials)
 
-    def refresh_credentials(self):
+    async def refresh_credentials(self) -> Optional[str]:
         """
-        Atualiza as credenciais se estiverem expiradas usando o refresh token.
+        Atualiza as credenciais se estiverem expiradas usando o refresh token
+        e atualiza os tokens do usuário no banco de dados via UserRepository.
+
+        :return: JSON com as credenciais atualizadas, se houver atualização, ou None.
         """
+        # Cria uma instância do repositório de usuário.
+        user_repository = UserRepository()
+
         if self.credentials and self.credentials.expired and self.credentials.refresh_token:
             self.credentials.refresh(Request())
-            # Atualizar as credenciais criptografadas
             updated_credentials_json = self.credentials.to_json()
+            tokens = json.loads(updated_credentials_json)
+            new_google_token = tokens.get("token")
+            # Se o refresh token não for retornado, mantém o atual.
+            new_google_refresh_token = tokens.get("refresh_token", self.user.google_refresh_token)
+
+            # Atualiza os tokens do usuário no banco de dados.
+            await user_repository.update_google_tokens(
+                user_id=self.user.id,
+                google_token=new_google_token,
+                google_refresh_token=new_google_refresh_token
+            )
+
+            # Atualiza os tokens no objeto local também.
+            self.user.google_token = new_google_token
+            self.user.google_refresh_token = new_google_refresh_token
+
             return updated_credentials_json
         return None
 
     # Métodos do Gmail
 
+    @auto_refresh
     def send_email(self, to: str, subject: str, body: str, attachments: Optional[List[str]] = None) -> Optional[str]:
         """
         Envia um email para o destinatário especificado.
-        
-        :param to: Endereço de email do destinatário.
-        :param subject: Assunto do email.
-        :param body: Corpo do email em texto simples.
-        :param attachments: Lista de caminhos para arquivos a serem anexados (opcional).
-        :return: ID da mensagem enviada ou None em caso de erro.
         """
         try:
             if attachments:
@@ -85,13 +138,10 @@ class GoogleService:
             print(f"An error occurred while sending email: {error}")
             return None
 
+    @auto_refresh
     def list_emails(self, query: Optional[str] = None, max_results: int = 10) -> Optional[List[dict]]:
         """
         Lista os emails do usuário com base em uma query específica.
-        
-        :param query: Query para filtrar emails (opcional).
-        :param max_results: Número máximo de emails a serem retornados.
-        :return: Lista de dicionários contendo informações dos emails ou None em caso de erro.
         """
         try:
             response = self.gmail_service.users().messages().list(userId='me', q=query, maxResults=max_results).execute()
@@ -115,33 +165,23 @@ class GoogleService:
             print(f"An error occurred while listing emails: {error}")
             return None
 
+    @auto_refresh
     def list_unread_emails(self, max_results: int = 10) -> Optional[List[dict]]:
         """
         Lista os emails não lidos do usuário.
-        
-        :param max_results: Número máximo de emails a serem retornados.
-        :return: Lista de dicionários contendo informações dos emails ou None em caso de erro.
         """
         query = "is:unread"
         return self.list_emails(query=query, max_results=max_results)
 
     # Métodos do Google Calendar
 
+    @auto_refresh
     def create_event(self, summary: str, location: str, description: str,
                     start_time: str, end_time: str,
                     attendees: Optional[List[dict]] = None,
                     time_zone: str = 'America/Sao_Paulo') -> Optional[dict]:
         """
         Cria um evento no Google Calendar do usuário.
-        
-        :param summary: Título do evento.
-        :param location: Local do evento.
-        :param description: Descrição do evento.
-        :param start_time: Início do evento no formato 'YYYY-MM-DDTHH:MM:SS±HH:MM'.
-        :param end_time: Término do evento no formato 'YYYY-MM-DDTHH:MM:SS±HH:MM'.
-        :param attendees: Lista de dicionários com os emails dos participantes, por exemplo: [{'email': 'example@example.com'}]
-        :param time_zone: Fuso horário do evento.
-        :return: Dicionário com detalhes do evento criado ou None em caso de erro.
         """
         event = {
             'summary': summary,
@@ -169,15 +209,11 @@ class GoogleService:
             print(f"An error occurred while creating event: {error}")
             return None
 
+    @auto_refresh
     def list_events(self, time_min: Optional[str] = None, time_max: Optional[str] = None,
-                  max_results: int = 10) -> Optional[List[dict]]:
+                    max_results: int = 10) -> Optional[List[dict]]:
         """
         Lista os eventos no Google Calendar do usuário entre time_min e time_max.
-        
-        :param time_min: Data e hora mínima no formato 'YYYY-MM-DDTHH:MM:SSZ' (UTC) ou 'YYYY-MM-DDTHH:MM:SS±HH:MM'.
-        :param time_max: Data e hora máxima no formato 'YYYY-MM-DDTHH:MM:SSZ' (UTC) ou 'YYYY-MM-DDTHH:MM:SS±HH:MM'.
-        :param max_results: Número máximo de eventos a serem retornados.
-        :return: Lista de dicionários contendo informações dos eventos ou None em caso de erro.
         """
         try:
             events_result = self.calendar_service.events().list(
@@ -208,21 +244,18 @@ class GoogleService:
             print(f"An error occurred while listing events: {error}")
             return None
 
+    @auto_refresh
     def update_event(self, event_id: str, updated_fields: dict) -> Optional[dict]:
         """
         Atualiza um evento existente no Google Calendar do usuário.
-        
-        :param event_id: ID do evento a ser atualizado.
-        :param updated_fields: Dicionário com os campos a serem atualizados, por exemplo: {'summary': 'Novo Título'}
-        :return: Dicionário com detalhes do evento atualizado ou None em caso de erro.
         """
         try:
             event = self.calendar_service.events().get(calendarId='primary', eventId=event_id).execute()
-            
+
             for key, value in updated_fields.items():
                 if key in event:
                     event[key] = value
-            
+
             updated_event = self.calendar_service.events().update(calendarId='primary', eventId=event_id, body=event).execute()
             print(f"Event updated: {updated_event.get('htmlLink')}")
             return updated_event
@@ -230,12 +263,10 @@ class GoogleService:
             print(f"An error occurred while updating event: {error}")
             return None
 
+    @auto_refresh
     def delete_event(self, event_id: str) -> bool:
         """
         Deleta um evento no Google Calendar do usuário.
-        
-        :param event_id: ID do evento a ser deletado.
-        :return: True se a deleção for bem-sucedida, False caso contrário.
         """
         try:
             self.calendar_service.events().delete(calendarId='primary', eventId=event_id).execute()
@@ -245,14 +276,12 @@ class GoogleService:
             print(f"An error occurred while deleting event: {error}")
             return False
 
+    @auto_refresh
     def list_events_for_week(self, user_timezone: str = 'America/Sao_Paulo') -> Optional[List[dict]]:
         """
         Lista os eventos da próxima semana no Google Calendar do usuário.
-        
-        :param user_timezone: Fuso horário do usuário.
-        :return: Lista de dicionários contendo informações dos eventos ou None em caso de erro.
         """
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now()
         start_of_week = now
         end_of_week = now + datetime.timedelta(days=7)
 
@@ -261,18 +290,9 @@ class GoogleService:
 
         return self.list_events(time_min=time_min, time_max=time_max, max_results=50)
 
-    # Métodos Adicionais (Receber Emails via Push ou Polling) podem ser implementados conforme a necessidade.
-
-    # Método para Gerar URL de Autorização (Utilizado no fluxo OAuth)
     def get_authorization_url(self, client_secrets_file: str, scopes: List[str], redirect_uri: str, state: Optional[str] = None) -> str:
         """
         Gera o URL de autorização para o fluxo OAuth 2.0.
-        
-        :param client_secrets_file: Caminho para o arquivo client_secret.json.
-        :param scopes: Lista de scopes para solicitar.
-        :param redirect_uri: URI de redirecionamento após a autorização.
-        :param state: Parâmetro opcional para manter o estado entre a solicitação e a callback.
-        :return: URL de autorização.
         """
         flow = Flow.from_client_secrets_file(
             client_secrets_file,
