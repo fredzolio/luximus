@@ -109,6 +109,23 @@ class GoogleService:
     def send_email(self, to: str, subject: str, body: str, attachments: Optional[List[str]] = None) -> Optional[str]:
         """
         Envia um email para o destinatário especificado.
+
+        Parâmetros de chamada:
+            to (str): Endereço de email do destinatário.
+            subject (str): Assunto do email.
+            body (str): Corpo do email.
+            attachments (Optional[List[str]]): Lista de caminhos (str) para os arquivos que serão anexados.
+
+        Retorno:
+            str: ID da mensagem enviada, ou None em caso de erro.
+
+        Exemplo de chamada:
+            message_id = service.send_email(
+                to="destinatario@example.com",
+                subject="Olá",
+                body="Este é um teste de envio de email.",
+                attachments=["/caminho/para/arquivo.txt"]
+            )
         """
         try:
             if attachments:
@@ -142,6 +159,16 @@ class GoogleService:
     def list_emails(self, query: Optional[str] = None, max_results: int = 10) -> Optional[List[dict]]:
         """
         Lista os emails do usuário com base em uma query específica.
+
+        Parâmetros de chamada:
+            query (Optional[str]): String com os critérios de busca (ex.: "from:exemplo@dominio.com").
+            max_results (int): Número máximo de emails a retornar.
+
+        Retorno:
+            List[dict]: Lista de dicionários com informações do email (id, subject, from, snippet), ou None em caso de erro.
+
+        Exemplo de chamada:
+            emails = service.list_emails(query="is:starred", max_results=5)
         """
         try:
             response = self.gmail_service.users().messages().list(userId='me', q=query, maxResults=max_results).execute()
@@ -169,6 +196,15 @@ class GoogleService:
     def list_unread_emails(self, max_results: int = 10) -> Optional[List[dict]]:
         """
         Lista os emails não lidos do usuário.
+
+        Parâmetros de chamada:
+            max_results (int): Número máximo de emails não lidos a retornar.
+
+        Retorno:
+            List[dict]: Lista de dicionários com informações dos emails não lidos, ou None em caso de erro.
+
+        Exemplo de chamada:
+            unread_emails = service.list_unread_emails(max_results=5)
         """
         query = "is:unread"
         return self.list_emails(query=query, max_results=max_results)
@@ -182,6 +218,28 @@ class GoogleService:
                     time_zone: str = 'America/Sao_Paulo') -> Optional[dict]:
         """
         Cria um evento no Google Calendar do usuário.
+
+        Parâmetros de chamada:
+            summary (str): Título do evento.
+            location (str): Local do evento.
+            description (str): Descrição do evento.
+            start_time (str): Data e hora de início do evento no formato ISO (ex.: "2025-02-10T10:00:00").
+            end_time (str): Data e hora de término do evento no formato ISO (ex.: "2025-02-10T12:00:00").
+            attendees (Optional[List[dict]]): Lista de dicionários com os participantes do evento (ex.: [{"email": "participante@example.com"}]).
+            time_zone (str): Fuso horário do evento (padrão: 'America/Sao_Paulo').
+
+        Retorno:
+            dict: Dicionário com as informações do evento criado, ou None em caso de erro.
+
+        Exemplo de chamada:
+            event = service.create_event(
+                summary="Reunião",
+                location="Escritório",
+                description="Discussão sobre projeto",
+                start_time="2025-02-10T10:00:00",
+                end_time="2025-02-10T11:00:00",
+                attendees=[{"email": "colaborador@example.com"}]
+            )
         """
         event = {
             'summary': summary,
@@ -214,6 +272,21 @@ class GoogleService:
                     max_results: int = 10) -> Optional[List[dict]]:
         """
         Lista os eventos no Google Calendar do usuário entre time_min e time_max.
+
+        Parâmetros de chamada:
+            time_min (Optional[str]): Data/hora mínima em formato ISO para filtrar eventos (ex.: "2025-02-01T00:00:00Z").
+            time_max (Optional[str]): Data/hora máxima em formato ISO para filtrar eventos (ex.: "2025-02-07T23:59:59Z").
+            max_results (int): Número máximo de eventos a retornar.
+
+        Retorno:
+            List[dict]: Lista de dicionários com informações dos eventos, ou None em caso de erro.
+
+        Exemplo de chamada:
+            events = service.list_events(
+                time_min="2025-02-01T00:00:00Z",
+                time_max="2025-02-07T23:59:59Z",
+                max_results=20
+            )
         """
         try:
             events_result = self.calendar_service.events().list(
@@ -248,6 +321,20 @@ class GoogleService:
     def update_event(self, event_id: str, updated_fields: dict) -> Optional[dict]:
         """
         Atualiza um evento existente no Google Calendar do usuário.
+
+        Parâmetros de chamada:
+            event_id (str): ID do evento a ser atualizado.
+            updated_fields (dict): Dicionário contendo os campos a serem atualizados e seus novos valores.
+                Exemplo: {"summary": "Novo título", "location": "Novo local"}
+
+        Retorno:
+            dict: Dicionário com as informações do evento atualizado, ou None em caso de erro.
+
+        Exemplo de chamada:
+            updated_event = service.update_event(
+                event_id="abc123",
+                updated_fields={"summary": "Reunião Atualizada"}
+            )
         """
         try:
             event = self.calendar_service.events().get(calendarId='primary', eventId=event_id).execute()
@@ -267,6 +354,15 @@ class GoogleService:
     def delete_event(self, event_id: str) -> bool:
         """
         Deleta um evento no Google Calendar do usuário.
+
+        Parâmetros de chamada:
+            event_id (str): ID do evento a ser deletado.
+
+        Retorno:
+            bool: True se o evento foi deletado com sucesso, False caso contrário.
+
+        Exemplo de chamada:
+            success = service.delete_event(event_id="abc123")
         """
         try:
             self.calendar_service.events().delete(calendarId='primary', eventId=event_id).execute()
@@ -280,6 +376,15 @@ class GoogleService:
     def list_events_for_week(self, user_timezone: str = 'America/Sao_Paulo') -> Optional[List[dict]]:
         """
         Lista os eventos da próxima semana no Google Calendar do usuário.
+
+        Parâmetros de chamada:
+            user_timezone (str): Fuso horário do usuário (padrão: 'America/Sao_Paulo').
+
+        Retorno:
+            List[dict]: Lista de dicionários com informações dos eventos da semana, ou None em caso de erro.
+
+        Exemplo de chamada:
+            weekly_events = service.list_events_for_week(user_timezone="America/Sao_Paulo")
         """
         now = datetime.datetime.now()
         start_of_week = now
