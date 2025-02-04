@@ -22,10 +22,9 @@ redis_client = redis.Redis(
 @shared_task
 def send_message_task(agent_id: str, message: str):
     """
-    Tarefa Celery para enviar mensagem ao agente e monitorar o status da execução.
+    Tarefa Celery para enviar mensagem ao agente e iniciar o monitoramento da execução.
     """
     try:
-        # Enviar mensagem ao agente
         response = lc.agents.messages.create_async(
             agent_id=agent_id,
             messages=[
@@ -50,21 +49,26 @@ def send_message_task(agent_id: str, message: str):
         redis_key = f"run:{run_id}"
         redis_client.set(redis_key, phone, ex=3600)  # Expira em 1 hora
 
-        # Iniciar a verificação do status da execução
-        check_run_status_task.delay(run_id, agent_id, timeout=30)
+        # Inicia a verificação do status da execução, com tentativa inicial 1.
+        check_run_status_task.delay(run_id, agent_id, timeout=30, poll_interval=1, attempt=1)
 
     except Exception as e:
         logging.error(f"Erro ao enviar mensagem ao agente {agent_id}: {e}")
 
 @shared_task
-def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_interval: int = 1):
+def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_interval: int = 1, attempt: int = 1):
     """
-    Tarefa Celery para verificar o status da execução e enviar a resposta ao usuário quando concluída.
+    Tarefa Celery para verificar o status da execução e enviar a resposta ao usuário.
+    Em caso de timeout, envia uma mensagem informando que a solicitação está demorando,
+    mas continua aguardando a finalização da execução original.
+    Para status 'failed', tenta novamente até 4 vezes.
     """
-    
+    max_attempts = 4
+    timeout_notified = False
+
     try:
         start_time = time.time()
-        phone = redis_client.get(f"run:{run_id}")  # Recuperar phone do Redis
+        phone = redis_client.get(f"run:{run_id}")  # Recupera o telefone do usuário
 
         if not phone:
             logging.error(f"Telefone do usuário não encontrado para run_id {run_id}.")
@@ -74,12 +78,31 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
             run = lc.runs.retrieve_run(run_id)
             if run.status in ["completed", "failed"]:
                 break
-            if time.time() - start_time > timeout:
-                logging.error(f"Timeout ao aguardar a execução do agente {agent_id}.")
-                return
+
+            # Se o tempo exceder o timeout e o usuário ainda não foi notificado, envia mensagem informativa
+            if time.time() - start_time > timeout and not timeout_notified:
+                wpp.send_message(
+                    phone,
+                    "Sua solicitação está demorando mais que o normal, estamos aguardando a finalização."
+                )
+                timeout_notified = True
+
             time.sleep(poll_interval)
 
-        # Obter as mensagens da execução
+        # Se a run falhou, tenta novamente (até o máximo de tentativas)
+        if run.status == "failed":
+            if attempt < max_attempts:
+                wpp.send_message(
+                    phone,
+                    f"A execução falhou. Tentando novamente (tentativa {attempt + 1}/{max_attempts})."
+                )
+                check_run_status_task.delay(run_id, agent_id, timeout, poll_interval, attempt + 1)
+            else:
+                logging.error(f"Execução final falhou para o agente {agent_id} após {attempt} tentativas.")
+                wpp.send_message(phone, "Erro ao processar a solicitação. Por favor, tente novamente mais tarde.")
+            return
+
+        # Se a run foi completada, obtém as mensagens da execução
         messages = lc.runs.list_run_messages(run_id)
         assistant_message = next(
             (msg.content for msg in messages if isinstance(msg, AssistantMessage)),
@@ -87,12 +110,12 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
         )
 
         send_message = True
-        
+
         tool_called = next(
             (msg.tool_call.name for msg in messages if isinstance(msg, ToolCallMessage)),
             None
         )
-        
+
         if tool_called:
             flagged_tools = any([
                 "start_whatsapp_integration" in tool_called,
@@ -101,19 +124,17 @@ def check_run_status_task(run_id: str, agent_id: str, timeout: int = 30, poll_in
             ])
             if flagged_tools:
                 send_message = False
-                
+
         agent_tags = get_agent_tags(agent_id)
         if "background" in agent_tags:
             send_message = False
-        
+
         if assistant_message:
             if send_message:
                 wpp.send_message(phone, assistant_message)
-            else:
-                pass
         else:
             logging.error(f"A resposta do agente {agent_id} não contém 'assistant_message'. Estrutura: {messages}")
-            
+
         redis_client.delete(f"run:{run_id}")
 
     except Exception as e:

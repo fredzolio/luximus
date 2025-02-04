@@ -17,15 +17,30 @@ def create_main_agent(user_name: str, user_number: str, human_block_id: str):
           include_base_tools=True,
           tools=[
             "send_message_to_agent_and_wait_for_reply",
+            "send_email",
+            "list_emails",
+            "list_unread_emails",
+            "create_event",
+            "list_events",
+            "update_event",
+            "delete_event",
+            "list_events_for_week",
             ],
-          # tool_ids=[],
           memory_variables={"user_name": user_name},
           tool_rules=[
             ChildToolRule(tool_name="core_memory_append", children=["send_message"]),
             ChildToolRule(tool_name="archival_memory_insert", children=["send_message"]),
             ChildToolRule(tool_name="core_memory_replace", children=["send_message"]),
             ChildToolRule(tool_name="conversation_search", children=["send_message"]),
-            ChildToolRule(tool_name="archival_memory_search", children=["send_message"]),           
+            ChildToolRule(tool_name="archival_memory_search", children=["send_message"]),
+            ChildToolRule(tool_name="send_email", children=["send_message"]),
+            ChildToolRule(tool_name="list_emails", children=["send_message"]),
+            ChildToolRule(tool_name="list_unread_emails", children=["send_message"]),
+            ChildToolRule(tool_name="create_event", children=["send_message"]),
+            ChildToolRule(tool_name="list_events", children=["send_message"]),
+            ChildToolRule(tool_name="update_event", children=["send_message"]),
+            ChildToolRule(tool_name="delete_event", children=["send_message"]),
+            ChildToolRule(tool_name="list_events_for_week", children=["send_message"]),            
             ],
           tags=[
             user_number, 
@@ -56,6 +71,17 @@ def create_main_agent(user_name: str, user_number: str, human_block_id: str):
 - Você é o assistente pessoal do usuário, tem acesso a ferramentas e pode pedir informações a outros agentes para complementar suas informações e contextos para gerenciar a vida do usuário.
 - Salve na core memory informações que você julgar extremamente importantes para o usuário.
 - Salve na archival memory informações que você julgar importantes para o usuário, mas que não são extremamente importantes.
+- Para as funções abaixo peça as informações necessárias (se necessário) ao usuário e chame as funções e aguarde a resposta, organize as informações (se necessário) e retorne ao usuário:            
+  - "send_email"
+  - "list_emails"
+  - "list_unread_emails"
+  - "create_event"
+  - "list_events"
+  - "update_event"
+  - "delete_event"
+  - "list_events_for_week"
+- A não ser que o usuário peça ao contrário, você deve resumir e organizar bem as informações antes de passar ao usuário, use bullet points e listas para organizar as informações mais relevantes e necessárias, se necessário.
+- Além disso, você pode pedir informações sobre WhatsApp para o agente background, e somente para essas solicitações (de whatsapp e mensagens) peça sempre salientando a ele para buscar essas informações na memória de longo prazo dele. Pedidos relacionados a e-mail, eventos e outros, peça para o agente background executar a função.
 - Você pode pedir informações e conversar com o agente background para entender melhor o contexto do usuário e suas tarefas, necessidades e preferências. O agente background é responsável por ajudar você a entender o contexto do usuário. O agente background é um agente secundário. O agente background tem acesso a informações do usuário que podem ser úteis para você.
 \
 """

@@ -162,10 +162,12 @@ class CreateAgentsFlow:
         
         main_agent_id = user.id_main_agent
         
-        old_content = lc.agents.core_memory.retrieve_block(
+        persona_block = lc.agents.core_memory.retrieve_block(
             agent_id=main_agent_id,
             block_label="persona",
         )
+        
+        old_content = persona_block.value
         
         new_content = old_content + f"""\n- O agente background tem ID: {self.background_agent_id}"""
         

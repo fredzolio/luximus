@@ -228,10 +228,12 @@ class WhatsappIntegrationFlow:
             self.wpp.send_message(user.phone, "```Sua integração foi realizada com sucesso!``` ✅")
             user_update = UserBase(whatsapp_integration=True)
             await user_repo.update_user_by_id(user.id, user_update)
+            await asyncio.sleep(2)
             send_user_message_to_agent(onboarding_agent_id, "SYSTEM MESSAGE: Integração do Whatsapp realizada com sucesso!")
             message = f"Step 4 completed: Integration completed for user {user.name}"
         else:
             self.wpp.send_message(user.phone, "```Algo deu errado na sua integração, o QR-Code pode ter expirado.``` ❌")
+            await asyncio.sleep(2)
             send_user_message_to_agent(onboarding_agent_id, "SYSTEM MESSAGE: Integração do Whatsapp falhou!. Você deve perguntar ao usuário se ele quer tentar novamente. Informe a ele que o motivo pode ter sido a expiração do QR-Code, enfatize o fato de que ele deve ser rápido.")
             message = f"Step 4 completed: Something went wrong and the integration is not completed for user {user.name}"
         
