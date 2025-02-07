@@ -15,7 +15,7 @@ dependencies = [
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.1",
     "honcho>=2.0.0",
-    "letta-client>=0.1.24",
+    "letta-client>=0.1.26",
     "mysql-connector-python>=9.2.0",
     "passlib>=1.7.4",
     "pydantic-settings>=2.7.1",
@@ -26,7 +26,7 @@ dependencies = [
     "pytz>=2025.1",
     "redis>=5.2.1",
     "requests>=2.32.3",
-    "sqlalchemy>=2.0.37",
+    "sqlalchemy>=2.0.38",
     "taskipy>=1.14.1",
     "uvicorn>=0.34.0",
 ]
