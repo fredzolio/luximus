@@ -47,13 +47,13 @@ def create_main_agent(user_name: str, user_number: str, human_block_id: str):
             "main"
           ],
           llm_config=LlmConfig(
-            model= "gemini-1.5-pro-latest",
+            model= "gemini-1.5-flash",
             model_endpoint_type= "google_ai",
             model_endpoint= "https://generativelanguage.googleapis.com",
             model_wrapper= None,
-            context_window= 2000000,
+            context_window= 1000000,
             put_inner_thoughts_in_kwargs= True,
-            handle= "google_ai/gemini-1.5-pro-latest"
+            handle= "google_ai/gemini-1.5-flash"
           ),
           embedding="letta/letta-free",
           system=system_prompt_text,
