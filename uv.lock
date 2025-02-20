@@ -529,7 +529,7 @@ wheels = [
 
 [[package]]
 name = "letta-client"
-version = "0.1.40"
+version = "0.1.41"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -538,9 +538,9 @@ dependencies = [
     { name = "pydantic-core" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b7/6a/a6e9f7c5ca73661a80013e8abd66c81fdba49262dee666127e962e960f68/letta_client-0.1.40.tar.gz", hash = "sha256:c1d2afaeb5519a36b622675e14b548d388a82d8e4b1eb470bb2a641a11d471ed", size = 106434 }
+sdist = { url = "https://files.pythonhosted.org/packages/35/2c/4cb406ceab212ffc7363ef83c89d5d77f9c1ce4e80b57a66c15eeabb5fd8/letta_client-0.1.41.tar.gz", hash = "sha256:ac7323da40665645321670b08e8c73aac92dcc9282aa7e4598e6524cf17a161a", size = 105763 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/f1/bd8460c892e01e7202af42ec169bd156b83bd2d46168ed221aeb437d0880/letta_client-0.1.40-py3-none-any.whl", hash = "sha256:8585bdc7cbb736590105a8e27692842c0987350c24a9bb5f74a165a5e66b7bfd", size = 375931 },
+    { url = "https://files.pythonhosted.org/packages/42/b6/43a3470ffb3766fee9cda68f13513ee99058f8bc4c4cd9f5ab1cc1817803/letta_client-0.1.41-py3-none-any.whl", hash = "sha256:d1c62c00cd2ad6009863ccb648ca0fcfe8817a1b6efcc52d5a33d175713d41ae", size = 369810 },
 ]
 
 [[package]]
@@ -586,7 +586,7 @@ requires-dist = [
     { name = "google-auth-httplib2", specifier = ">=0.2.0" },
     { name = "google-auth-oauthlib", specifier = ">=1.2.1" },
     { name = "honcho", specifier = ">=2.0.0" },
-    { name = "letta-client", specifier = ">=0.1.40" },
+    { name = "letta-client", specifier = ">=0.1.41" },
     { name = "mysql-connector-python", specifier = ">=9.2.0" },
     { name = "passlib", specifier = ">=1.7.4" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.10.6" },
