@@ -25,8 +25,8 @@ async def reset_redis_db():
         await client.ping()
         print("Conectado. Resetando o banco de dados...")
         
-        # Reseta (limpa) apenas o banco atual
-        await client.flushdb()
+        # Reseta todos os bancos de dados
+        await client.flushall()
         print("Banco de dados resetado com sucesso!")
         
     except Exception as e:
